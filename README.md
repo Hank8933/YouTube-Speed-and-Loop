@@ -26,13 +26,14 @@ Enhances YouTube with playback speeds beyond 2x and repeat functionality.
   - Click "Clear" to reset the loop range.
 
 ## Screenshots
+
 ### Collapsed Control Panel  
 The control panel in its minimized state.  
-![Control Panel Collapsed](images/control-panel-collapsed.jpg)
+![Control Panel Collapsed](https://raw.githubusercontent.com/Hank8933/YouTube-Speed-and-Loop/main/images/control-panel-collapsed.jpg)
 
 ### Expanded Control Panel  
 The full panel with all options visible.  
-![Control Panel Expanded](images/control-panel-expanded.jpg)
+![Control Panel Expanded](https://raw.githubusercontent.com/Hank8933/YouTube-Speed-and-Loop/main/images/control-panel-expanded.jpg)
 
 ## Changelog
 
