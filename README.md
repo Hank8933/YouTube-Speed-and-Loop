@@ -10,7 +10,7 @@ Enhances YouTube with playback speeds beyond 2x and repeat functionality.
 
 ## Installation
 
-1. Install a userscript manager like [Tampermonkey](https://www.tampermonkey.net/).
+1. Install a userscript manager like [Tampermonkey](https://www.tampermonkey.net/) and enable developer mode (see [this guide](https://www.tampermonkey.net/faq.php#Q209)).
 2. Go to [Greasy Fork](https://greasyfork.org/zh-TW/scripts/529190-youtube-speed-and-loop) to install the script.
 
 ## Usage
