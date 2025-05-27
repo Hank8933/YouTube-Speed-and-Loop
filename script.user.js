@@ -143,6 +143,12 @@
         return el;
     }
 
+    // Clean up existing panels
+    function cleanUpPanels() {
+        const existingPanels = document.querySelectorAll('.yt-custom-control-panel');
+        existingPanels.forEach(panel => panel.remove());
+    }
+
     // Create control panel DOM structure
     function createControlPanel() {
         const panel = createElement('div', 'yt-custom-control-panel');
@@ -328,6 +334,7 @@
     // Main initialization
     async function init() {
         const video = await waitForVideo();
+        cleanUpPanels(); // Clean up any existing panels before creating a new one
         const panel = createControlPanel();
 
         setTimeout(() => {
@@ -363,8 +370,7 @@
     const observer = new MutationObserver(() => {
         if (lastUrl !== location.href) {
             lastUrl = location.href;
-            const oldPanel = document.querySelector('.yt-custom-control-panel');
-            if (oldPanel) oldPanel.remove();
+            cleanUpPanels(); // Clean up any existing panels before reinitializing
             setTimeout(init, 1000);
         }
     });
