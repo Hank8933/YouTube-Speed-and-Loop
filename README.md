@@ -35,9 +35,17 @@ The control panel in its minimized state.
 The full panel with all options visible.  
 ![Control Panel Expanded](https://raw.githubusercontent.com/Hank8933/YouTube-Speed-and-Loop/main/images/control-panel-expanded.jpg)
 
-## Changelog
+## 📦 Changelog
 
-- **v1.0** (Current): Initial release with playback speed and loop functionality.
+- **v1.0**
+
+    - Initial release with playback speed and loop functionality.
+
+- **v1.0.1** (Current)
+
+    - 🛠️ Fix: Prevent multiple control panels from appearing.
+
+    - 🔄 Fix: Keep custom loop toggle in sync with the native video loop state.
 
 ## License
 
