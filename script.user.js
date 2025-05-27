@@ -2,7 +2,7 @@
 // @name               YouTube Speed and Loop
 // @name:zh-TW         YouTube 播放速度與循環
 // @namespace          https://github.com/Hank8933
-// @version            1.0
+// @version            1.0.1
 // @description        Enhances YouTube with playback speeds beyond 2x and repeat functionality
 // @description:zh-TW  為 YouTube 提供超過 2 倍的播放速度控制和重複播放功能
 // @author             Hank8933
