@@ -244,6 +244,19 @@
         return { disconnect: () => clearInterval(interval) };
     }
 
+    // Observe native loop changes
+    function observeNativeLoop(video, loopToggle, updateLoopState) {
+        let lastLoopState = video.loop;
+        const interval = setInterval(() => {
+            const currentLoopState = video.loop;
+            if (currentLoopState !== lastLoopState) {
+                updateLoopState(currentLoopState, loopToggle);
+                lastLoopState = currentLoopState;
+            }
+        }, 500);
+        return { disconnect: () => clearInterval(interval) };
+    }
+
     // Speed Controller Module
     const SpeedController = {
         updatePlaybackRate(rate) {
@@ -278,15 +291,25 @@
     // Loop Controller Module
     const LoopController = {
         init(video, toggle, startBtn, endBtn, clearBtn, info) {
-            let isLooping = false;
+            let isLooping = video.loop; // Initialize with video's loop state
             let loopStart = null;
             let loopEnd = null;
+
+            // Set initial toggle state based on video.loop
+            toggle.textContent = isLooping ? 'On' : 'Off';
+            toggle.classList.toggle('active', isLooping);
+
+            // Update loop state and toggle UI
+            const updateLoopState = (newState, toggleBtn) => {
+                isLooping = newState;
+                toggleBtn.textContent = isLooping ? 'On' : 'Off';
+                toggleBtn.classList.toggle('active', isLooping);
+            };
 
             toggle.addEventListener('click', () => {
                 isLooping = !isLooping;
                 video.loop = isLooping;
-                toggle.textContent = isLooping ? 'On' : 'Off';
-                toggle.classList.toggle('active', isLooping);
+                updateLoopState(isLooping, toggle);
             });
 
             startBtn.addEventListener('click', () => {
@@ -312,6 +335,9 @@
                     }
                 }
             });
+
+            // Observe native loop changes
+            const loopObserver = observeNativeLoop(video, toggle, updateLoopState);
         },
         updateLoopInfo(start, end, info) {
             if (start !== null && end !== null) {
