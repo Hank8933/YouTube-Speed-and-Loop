@@ -2,7 +2,7 @@
 // @name               YouTube Speed and Loop
 // @name:zh-TW         YouTube 播放速度與循環
 // @namespace          https://github.com/Hank8933
-// @version            1.0
+// @version            1.0.1
 // @description        Enhances YouTube with playback speeds beyond 2x and repeat functionality
 // @description:zh-TW  為 YouTube 提供超過 2 倍的播放速度控制和重複播放功能
 // @author             Hank8933
@@ -143,6 +143,23 @@
         return el;
     }
 
+    // Store disconnect functions for cleanup
+    let playbackRateDisconnect = () => {};
+    let loopDisconnect = () => {};
+
+    // Clean up existing panels and observers
+    function cleanUpPanels() {
+        // Disconnect observers to stop intervals
+        playbackRateDisconnect();
+        loopDisconnect();
+        // Reset disconnect functions
+        playbackRateDisconnect = () => {};
+        loopDisconnect = () => {};
+        // Remove existing panels
+        const existingPanels = document.querySelectorAll('.yt-custom-control-panel');
+        existingPanels.forEach(panel => panel.remove());
+    }
+
     // Create control panel DOM structure
     function createControlPanel() {
         const panel = createElement('div', 'yt-custom-control-panel');
@@ -238,6 +255,19 @@
         return { disconnect: () => clearInterval(interval) };
     }
 
+    // Observe native loop changes
+    function observeNativeLoop(video, toggle, updateLoopState) {
+        let lastLoopState = video.loop;
+        const interval = setInterval(() => {
+            const currentLoopState = video.loop;
+            if (currentLoopState !== lastLoopState) {
+                updateLoopState(currentLoopState, toggle);
+                lastLoopState = currentLoopState;
+            }
+        }, 500);
+        return { disconnect: () => clearInterval(interval) };
+    }
+
     // Speed Controller Module
     const SpeedController = {
         updatePlaybackRate(rate) {
@@ -272,15 +302,23 @@
     // Loop Controller Module
     const LoopController = {
         init(video, toggle, startBtn, endBtn, clearBtn, info) {
-            let isLooping = false;
+            let isLooping = video.loop;
             let loopStart = null;
             let loopEnd = null;
+
+            toggle.textContent = isLooping ? 'On' : 'Off';
+            toggle.classList.toggle('active', isLooping);
+
+            const updateLoopState = (newState, toggleBtn) => {
+                isLooping = newState;
+                toggleBtn.textContent = isLooping ? 'On' : 'Off';
+                toggleBtn.classList.toggle('active', isLooping);
+            };
 
             toggle.addEventListener('click', () => {
                 isLooping = !isLooping;
                 video.loop = isLooping;
-                toggle.textContent = isLooping ? 'On' : 'Off';
-                toggle.classList.toggle('active', isLooping);
+                updateLoopState(isLooping, toggle);
             });
 
             startBtn.addEventListener('click', () => {
@@ -306,6 +344,9 @@
                     }
                 }
             });
+
+            const loopObserver = observeNativeLoop(video, toggle, updateLoopState);
+            loopDisconnect = loopObserver?.disconnect || (() => {});
         },
         updateLoopInfo(start, end, info) {
             if (start !== null && end !== null) {
@@ -328,6 +369,7 @@
     // Main initialization
     async function init() {
         const video = await waitForVideo();
+        cleanUpPanels();
         const panel = createControlPanel();
 
         setTimeout(() => {
@@ -348,6 +390,7 @@
             SpeedController.init(video, speedSlider, presetSpeeds);
             LoopController.init(video, loopToggle, loopStartBtn, loopEndBtn, loopClearBtn, loopInfo);
             const playbackRateObserver = observePlaybackRate(video);
+            playbackRateDisconnect = playbackRateObserver?.disconnect || (() => {});
             SpeedController.updatePlaybackRate(video.playbackRate || 1);
         }, 2000);
     }
@@ -363,8 +406,7 @@
     const observer = new MutationObserver(() => {
         if (lastUrl !== location.href) {
             lastUrl = location.href;
-            const oldPanel = document.querySelector('.yt-custom-control-panel');
-            if (oldPanel) oldPanel.remove();
+            cleanUpPanels();
             setTimeout(init, 1000);
         }
     });
