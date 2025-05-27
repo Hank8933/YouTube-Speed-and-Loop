@@ -143,8 +143,19 @@
         return el;
     }
 
-    // Clean up existing panels
+    // Store disconnect functions for cleanup
+    let playbackRateDisconnect = () => {};
+    let loopDisconnect = () => {};
+
+    // Clean up existing panels and observers
     function cleanUpPanels() {
+        // Disconnect observers to stop intervals
+        playbackRateDisconnect();
+        loopDisconnect();
+        // Reset disconnect functions
+        playbackRateDisconnect = () => {};
+        loopDisconnect = () => {};
+        // Remove existing panels
         const existingPanels = document.querySelectorAll('.yt-custom-control-panel');
         existingPanels.forEach(panel => panel.remove());
     }
@@ -245,12 +256,12 @@
     }
 
     // Observe native loop changes
-    function observeNativeLoop(video, loopToggle, updateLoopState) {
+    function observeNativeLoop(video, toggle, updateLoopState) {
         let lastLoopState = video.loop;
         const interval = setInterval(() => {
             const currentLoopState = video.loop;
             if (currentLoopState !== lastLoopState) {
-                updateLoopState(currentLoopState, loopToggle);
+                updateLoopState(currentLoopState, toggle);
                 lastLoopState = currentLoopState;
             }
         }, 500);
@@ -291,15 +302,13 @@
     // Loop Controller Module
     const LoopController = {
         init(video, toggle, startBtn, endBtn, clearBtn, info) {
-            let isLooping = video.loop; // Initialize with video's loop state
+            let isLooping = video.loop;
             let loopStart = null;
             let loopEnd = null;
 
-            // Set initial toggle state based on video.loop
             toggle.textContent = isLooping ? 'On' : 'Off';
             toggle.classList.toggle('active', isLooping);
 
-            // Update loop state and toggle UI
             const updateLoopState = (newState, toggleBtn) => {
                 isLooping = newState;
                 toggleBtn.textContent = isLooping ? 'On' : 'Off';
@@ -336,8 +345,8 @@
                 }
             });
 
-            // Observe native loop changes
             const loopObserver = observeNativeLoop(video, toggle, updateLoopState);
+            loopDisconnect = loopObserver?.disconnect || (() => {});
         },
         updateLoopInfo(start, end, info) {
             if (start !== null && end !== null) {
@@ -360,7 +369,7 @@
     // Main initialization
     async function init() {
         const video = await waitForVideo();
-        cleanUpPanels(); // Clean up any existing panels before creating a new one
+        cleanUpPanels();
         const panel = createControlPanel();
 
         setTimeout(() => {
@@ -381,6 +390,7 @@
             SpeedController.init(video, speedSlider, presetSpeeds);
             LoopController.init(video, loopToggle, loopStartBtn, loopEndBtn, loopClearBtn, loopInfo);
             const playbackRateObserver = observePlaybackRate(video);
+            playbackRateDisconnect = playbackRateObserver?.disconnect || (() => {});
             SpeedController.updatePlaybackRate(video.playbackRate || 1);
         }, 2000);
     }
@@ -396,7 +406,7 @@
     const observer = new MutationObserver(() => {
         if (lastUrl !== location.href) {
             lastUrl = location.href;
-            cleanUpPanels(); // Clean up any existing panels before reinitializing
+            cleanUpPanels();
             setTimeout(init, 1000);
         }
     });
