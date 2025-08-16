@@ -29,23 +29,31 @@ Enhances YouTube with playback speeds beyond 2x and repeat functionality.
 
 ### Collapsed Control Panel  
 The control panel in its minimized state.  
-![Control Panel Collapsed](https://raw.githubusercontent.com/Hank8933/YouTube-Speed-and-Loop/main/images/control-panel-collapsed.jpg)
+![Control Panel Collapsed](https://raw.githubusercontent.com/Hank8933/YouTube-Speed-and-Loop/main/images/control-panel-collapsed.png)
 
 ### Expanded Control Panel  
 The full panel with all options visible.  
-![Control Panel Expanded](https://raw.githubusercontent.com/Hank8933/YouTube-Speed-and-Loop/main/images/control-panel-expanded.jpg)
+![Control Panel Expanded](https://raw.githubusercontent.com/Hank8933/YouTube-Speed-and-Loop/main/images/control-panel-expanded.png)
 
 ## 📦 Changelog
 
-- **v1.0**
+- **v1.1.0** (Current)
 
-    - Initial release with playback speed and loop functionality.
+    - ✨ Feature: Added an auto-clicker for the "Continue Watching?" dialog and precise manual inputs for loop timing.
 
-- **v1.0.1** (Current)
+    - 🎨 UI Overhaul: Complete redesign of the control panel for a modern look, relocated to the top-right for better UI integration.
+    
+    - 🔧 Stability: Refactored initialization logic for significantly improved reliability and speed during page navigation.
+
+- **v1.0.1**
 
     - 🛠️ Fix: Prevent multiple control panels from appearing.
 
     - 🔄 Fix: Keep custom loop toggle in sync with the native video loop state.
+
+- **v1.0**
+
+    - 🎉 Initial Release: Basic playback speed and loop functionality.
 
 ## License
 

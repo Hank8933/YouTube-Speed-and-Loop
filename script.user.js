@@ -2,7 +2,7 @@
 // @name               YouTube Speed and Loop
 // @name:zh-TW         YouTube 播放速度與循環
 // @namespace          https://github.com/Hank8933
-// @version            1.0.1
+// @version            1.1.0
 // @description        Enhances YouTube with playback speeds beyond 2x and repeat functionality
 // @description:zh-TW  為 YouTube 提供超過 2 倍的播放速度控制和重複播放功能
 // @author             Hank8933
@@ -15,400 +15,311 @@
 (function() {
     'use strict';
 
-    // Define CSS with variables
+    const PANEL_ID = 'yt-enhancements-panel';
+    let isInitializing = false;
+
     const panelCSS = `
         :root {
-            --primary-bg: #212121;
-            --hover-bg: #333;
-            --active-bg: #f00;
-            --panel-bg: rgba(33, 33, 33, 0.9);
-            --text-color: #fff;
-            --shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            --primary-bg: transparent; --hover-bg: rgba(255, 255, 255, 0.1); --active-bg: #f00;
+            --panel-bg: #282828; --text-color: #fff; --shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            --input-bg: rgba(0, 0, 0, 0.3); --input-border: rgba(255, 255, 255, 0.2);
         }
         .yt-custom-control-panel {
-            position: relative;
-            top: 0;
-            left: 0;
-            z-index: 99999;
-            font-family: Roboto, Arial, sans-serif;
-            align-self: center;
+            position: relative; z-index: 99999; font-family: Roboto, Arial, sans-serif;
+            align-self: center; margin-right: 8px;
         }
         .yt-custom-control-toggle {
-            background-color: var(--primary-bg);
-            color: var(--text-color);
-            padding: 8px 16px;
-            border-radius: 20px;
-            border: none;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background-color 0.3s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            background-color: var(--primary-bg); color: var(--text-color);
+            border: 1px solid rgba(255, 255, 255, 0.1); font-weight: 500; cursor: pointer;
+            transition: background-color 0.3s; display: flex; align-items: center; justify-content: center;
+            width: 40px; height: 40px; box-sizing: border-box; border-radius: 50%;
+            font-size: 2rem; line-height: 0;
         }
-        .yt-custom-control-toggle:hover {
-            background-color: var(--hover-bg);
-        }
+        .yt-custom-control-toggle:hover { background-color: var(--hover-bg); }
         .yt-custom-control-content {
-            position: absolute;
-            top: calc(100% + 5px);
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: var(--panel-bg);
-            color: var(--text-color);
-            padding: 10px;
-            border-radius: 8px;
-            box-shadow: var(--shadow);
-            display: none;
-            flex-direction: column;
-            gap: 5px;
-            min-width: 300px;
-            white-space: nowrap;
+            position: absolute; top: calc(100% + 10px); right: 0; transform: none; left: auto;
+            background-color: var(--panel-bg); color: var(--text-color); padding: 12px;
+            border: 1px solid var(--input-border); border-radius: 12px; box-shadow: var(--shadow);
+            display: none; flex-direction: column; gap: 12px; min-width: 320px; white-space: nowrap;
         }
-        .yt-custom-control-panel.expanded .yt-custom-control-content {
-            display: flex;
-        }
+        .yt-custom-control-panel.expanded .yt-custom-control-content { display: flex; }
         .yt-custom-control-title {
-            font-weight: bold;
-            margin-bottom: 5px;
+            font-weight: bold; margin-bottom: 8px; padding: 0 5px; font-size: 16px;
         }
-        .yt-custom-control-section {
-            margin-bottom: 5px;
-        }
+        .yt-custom-control-section { padding: 8px; border-radius: 8px; transition: background-color 0.2s; }
+        .yt-custom-control-section:hover { background-color: rgba(255, 255, 255, 0.05); }
         .yt-custom-btn {
-            background-color: #444;
-            border: none;
-            color: var(--text-color);
-            padding: 5px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-            white-space: nowrap;
-            text-align: center;
-            flex: 1;
-            margin-right: 5px;
+            background-color: rgba(255, 255, 255, 0.15); border: none; color: var(--text-color);
+            padding: 6px 12px; border-radius: 18px; cursor: pointer; font-size: 13px;
+            white-space: nowrap; text-align: center; flex-grow: 1; margin-right: 8px;
         }
-        .yt-custom-btn:last-child {
-            margin-right: 0;
+        .yt-custom-btn:last-child { margin-right: 0; }
+        .yt-custom-btn:hover { background-color: rgba(255, 255, 255, 0.25); }
+        .yt-custom-btn.active { background-color: var(--active-bg); }
+        .yt-custom-btn-group { display: flex; justify-content: space-between; }
+        .yt-speed-controls { display: flex; flex-direction: column; gap: 8px; white-space: nowrap; }
+        .yt-slider-row { display: flex; align-items: center; width: 100%; }
+        .yt-custom-slider { flex-grow: 1; min-width: 100px; }
+        .yt-preset-speeds { display: flex; gap: 5px; width: 100%; }
+        .loop-input-container {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 8px; margin-top: 10px;
         }
-        .yt-custom-btn:hover {
-            background-color: #555;
+        .loop-time-input {
+            width: 100%; background-color: var(--input-bg);
+            border: 1px solid var(--input-border); color: var(--text-color);
+            border-radius: 8px; padding: 8px; font-family: 'Courier New', Courier, monospace;
+            font-size: 14px; text-align: center; transition: border-color 0.3s, box-shadow 0.3s;
         }
-        .yt-custom-btn.active {
-            background-color: var(--active-bg);
+        .loop-time-input:focus {
+            outline: none; border-color: #3ea6ff;
+            box-shadow: 0 0 5px rgba(62, 166, 255, 0.5);
         }
-        .yt-speed-controls {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            white-space: nowrap;
+        .yt-custom-toggle-section {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 4px 8px;
         }
-        .yt-slider-row {
-            display: flex;
-            align-items: center;
-            width: 100%;
-        }
-        .yt-custom-slider {
-            flex-grow: 1;
-            min-width: 100px;
-        }
-        .yt-preset-speeds {
-            display: flex;
-            gap: 5px;
-            width: 100%;
-        }
-        .yt-custom-slider-value {
-            min-width: 40px;
-            text-align: right;
-        }
-        #end {
-            display: flex;
-            align-items: center;
-        }
-        #buttons {
-            margin-left: 10px;
+        .yt-custom-toggle-section .yt-custom-btn {
+            flex-grow: 0; min-width: 60px; margin-right: 0;
         }
     `;
-
-    // Add CSS to document head
     const styleEl = document.createElement('style');
     styleEl.textContent = panelCSS;
     document.head.appendChild(styleEl);
 
-    // Utility function to create DOM elements
-    function createElement(tag, className, textContent) {
+    function getFormattedTimestamp() {
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
+        return `${hours}:${minutes}:${seconds}`;
+    }
+
+    function createElement(tag, id, className, textContent) {
         const el = document.createElement(tag);
+        if (id) el.id = id;
         if (className) el.className = className;
         if (textContent) el.textContent = textContent;
         return el;
     }
 
-    // Store disconnect functions for cleanup
     let playbackRateDisconnect = () => {};
     let loopDisconnect = () => {};
 
-    // Clean up existing panels and observers
-    function cleanUpPanels() {
-        // Disconnect observers to stop intervals
+    function cleanUpVideoFeatures() {
         playbackRateDisconnect();
         loopDisconnect();
-        // Reset disconnect functions
+        AutoConfirmController.stop();
         playbackRateDisconnect = () => {};
         loopDisconnect = () => {};
-        // Remove existing panels
-        const existingPanels = document.querySelectorAll('.yt-custom-control-panel');
-        existingPanels.forEach(panel => panel.remove());
     }
 
-    // Create control panel DOM structure
-    function createControlPanel() {
-        const panel = createElement('div', 'yt-custom-control-panel');
-        const toggleBtn = createElement('button', 'yt-custom-control-toggle', '≡');
-        toggleBtn.id = 'yt-toggle-panel';
-        const contentDiv = createElement('div', 'yt-custom-control-content');
+    function createAndSetupControlPanel(container) {
+        const panel = createElement('div', PANEL_ID, 'yt-custom-control-panel');
+        const toggleBtn = createElement('button', null, 'yt-custom-control-toggle', '≡');
+        const contentDiv = createElement('div', null, 'yt-custom-control-content');
+        toggleBtn.addEventListener('click', (e) => { e.stopPropagation(); panel.classList.toggle('expanded'); toggleBtn.textContent = panel.classList.contains('expanded') ? '×' : '≡'; });
+        document.addEventListener('click', () => { if (panel.classList.contains('expanded')) { panel.classList.remove('expanded'); toggleBtn.textContent = '≡'; } });
+        contentDiv.addEventListener('click', (e) => e.stopPropagation());
 
-        const titleDiv = createElement('div', 'yt-custom-control-title');
-        titleDiv.appendChild(createElement('span', '', 'YouTube Enhanced Controls'));
+        const titleDiv = createElement('div', null, 'yt-custom-control-title', 'YouTube Enhanced Controls');
 
-        const speedSection = createElement('div', 'yt-custom-control-section');
-        const speedText = createElement('div', '');
-        speedText.textContent = 'Playback Speed: ';
-        const speedValue = createElement('span', '', '1.0');
-        speedValue.id = 'yt-speed-value';
-        speedText.appendChild(speedValue);
-        speedText.append('x');
-        const speedControls = createElement('div', 'yt-speed-controls');
-        const sliderRow = createElement('div', 'yt-slider-row');
-        const speedSlider = createElement('input', 'yt-custom-slider');
-        speedSlider.type = 'range';
-        speedSlider.id = 'yt-speed-slider';
-        speedSlider.min = '0.25';
-        speedSlider.max = '5';
-        speedSlider.step = '0.25';
-        speedSlider.value = '1';
+        const speedSection = createElement('div', null, 'yt-custom-control-section');
+        const speedText = createElement('div', null, null, 'Playback Speed: ');
+        const speedValue = createElement('span', null, null, '1.0');
+        speedText.appendChild(speedValue); speedText.append('x');
+        const speedControls = createElement('div', null, 'yt-speed-controls');
+        const sliderRow = createElement('div', null, 'yt-slider-row');
+        const speedSlider = createElement('input', null, 'yt-custom-slider');
+        speedSlider.type = 'range'; speedSlider.min = '0.25'; speedSlider.max = '5'; speedSlider.step = '0.25'; speedSlider.value = '1';
         sliderRow.appendChild(speedSlider);
-        speedControls.appendChild(sliderRow);
-        const presetSpeeds = createElement('div', 'yt-preset-speeds');
-        [1, 1.5, 2, 3, 4, 5].forEach(speed => {
-            const btn = createElement('button', 'yt-custom-btn yt-speed-preset', `${speed}x`);
-            btn.dataset.speed = speed;
-            presetSpeeds.appendChild(btn);
-        });
-        speedControls.appendChild(presetSpeeds);
-        speedSection.appendChild(speedText);
-        speedSection.appendChild(speedControls);
+        const presetSpeeds = createElement('div', null, 'yt-preset-speeds yt-custom-btn-group');
+        [1, 1.5, 2, 3, 4, 5].forEach(speed => { const btn = createElement('button', null, 'yt-custom-btn yt-speed-preset', `${speed}x`); btn.dataset.speed = speed; presetSpeeds.appendChild(btn); });
+        speedControls.append(sliderRow, presetSpeeds);
+        speedSection.append(speedText, speedControls);
 
-        const loopSection = createElement('div', 'yt-custom-control-section');
-        loopSection.appendChild(createElement('div', '', 'Loop Playback'));
-        const loopToggle = createElement('button', 'yt-custom-btn', 'Off');
-        loopToggle.id = 'yt-loop-toggle';
+        const loopSection = createElement('div', null, 'yt-custom-control-section yt-custom-toggle-section');
+        loopSection.appendChild(createElement('span', null, null, 'Loop Playback'));
+        const loopToggle = createElement('button', null, 'yt-custom-btn', 'Off');
         loopSection.appendChild(loopToggle);
 
-        const loopRangeSection = createElement('div', 'yt-custom-control-section');
-        loopRangeSection.appendChild(createElement('div', '', 'Loop Range'));
-        const rangeButtons = createElement('div', '');
-        const loopStartBtn = createElement('button', 'yt-custom-btn', 'Set Start');
-        loopStartBtn.id = 'yt-loop-start-btn';
-        const loopEndBtn = createElement('button', 'yt-custom-btn', 'Set End');
-        loopEndBtn.id = 'yt-loop-end-btn';
-        const loopClearBtn = createElement('button', 'yt-custom-btn', 'Clear');
-        loopClearBtn.id = 'yt-loop-clear-btn';
+        const loopRangeSection = createElement('div', null, 'yt-custom-control-section');
+        loopRangeSection.appendChild(createElement('span', null, null, 'Loop Range'));
+        const rangeButtons = createElement('div', null, 'yt-custom-btn-group');
+        const loopStartBtn = createElement('button', null, 'yt-custom-btn', 'Set Start');
+        const loopEndBtn = createElement('button', null, 'yt-custom-btn', 'Set End');
+        const loopClearBtn = createElement('button', null, 'yt-custom-btn', 'Clear');
         rangeButtons.append(loopStartBtn, loopEndBtn, loopClearBtn);
-        const loopInfo = createElement('div', '', 'No loop range set');
-        loopInfo.id = 'yt-loop-info';
-        loopRangeSection.append(rangeButtons, loopInfo);
+        const loopInputContainer = createElement('div', null, 'loop-input-container');
+        const loopStartInput = createElement('input', null, 'loop-time-input');
+        loopStartInput.type = 'text'; loopStartInput.placeholder = '00:00.000';
+        const loopInputSeparator = createElement('span', null, null, '→');
+        const loopEndInput = createElement('input', null, 'loop-time-input');
+        loopEndInput.type = 'text'; loopEndInput.placeholder = '00:00.000';
+        loopInputContainer.append(loopStartInput, loopInputSeparator, loopEndInput);
+        loopRangeSection.append(rangeButtons, loopInputContainer);
 
-        contentDiv.append(titleDiv, speedSection, loopSection, loopRangeSection);
+        const autoConfirmSection = createElement('div', null, 'yt-custom-control-section yt-custom-toggle-section');
+        autoConfirmSection.appendChild(createElement('span', null, null, 'Auto-Click "Continue watching?"'));
+        const autoConfirmToggle = createElement('button', null, 'yt-custom-btn', 'Off');
+        autoConfirmSection.appendChild(autoConfirmToggle);
+
+        contentDiv.append(titleDiv, speedSection, loopSection, loopRangeSection, autoConfirmSection);
         panel.append(toggleBtn, contentDiv);
+        container.prepend(panel);
 
-        const endDiv = document.querySelector('#end');
-        if (endDiv) {
-            endDiv.insertBefore(panel, endDiv.querySelector('#buttons'));
-        } else {
-            document.body.appendChild(panel);
-        }
-        return panel;
+        return {
+            speedSection, speedValue, speedSlider, presetSpeeds,
+            loopSection, loopToggle,
+            loopRangeSection, loopStartBtn, loopEndBtn, loopClearBtn, loopStartInput, loopEndInput,
+            autoConfirmToggle
+        };
     }
 
-    // Wait for video element
-    function waitForVideo() {
+    function waitForElement(selector) {
         return new Promise(resolve => {
-            const checkVideo = () => {
-                const video = document.querySelector('video');
-                if (video) resolve(video);
-                else setTimeout(checkVideo, 200);
-            };
-            checkVideo();
+            const interval = setInterval(() => {
+                const element = document.querySelector(selector);
+                if (element) {
+                    clearInterval(interval);
+                    resolve(element);
+                }
+            }, 250);
         });
     }
 
-    // Observe native playback rate changes
-    function observePlaybackRate(video) {
-        let lastRate = video.playbackRate;
-        const interval = setInterval(() => {
-            const newRate = video.playbackRate;
-            if (newRate !== lastRate) {
-                SpeedController.updatePlaybackRate(newRate);
-                lastRate = newRate;
-            }
-        }, 500);
-        return { disconnect: () => clearInterval(interval) };
-    }
-
-    // Observe native loop changes
-    function observeNativeLoop(video, toggle, updateLoopState) {
-        let lastLoopState = video.loop;
-        const interval = setInterval(() => {
-            const currentLoopState = video.loop;
-            if (currentLoopState !== lastLoopState) {
-                updateLoopState(currentLoopState, toggle);
-                lastLoopState = currentLoopState;
-            }
-        }, 500);
-        return { disconnect: () => clearInterval(interval) };
-    }
-
-    // Speed Controller Module
     const SpeedController = {
-        updatePlaybackRate(rate) {
-            const video = document.querySelector('video');
-            if (!video) return;
-            const speedValue = document.getElementById('yt-speed-value');
-            const speedSlider = document.getElementById('yt-speed-slider');
-            const speedPresets = document.querySelectorAll('.yt-speed-preset');
-            if (speedValue) speedValue.textContent = rate.toFixed(2);
-            if (speedSlider) speedSlider.value = rate;
-            speedPresets.forEach(btn => {
-                btn.classList.toggle('active', parseFloat(btn.dataset.speed) === rate);
+        updatePlaybackRate(rate, elements) {
+            if (!document.querySelector('video') || !elements) return;
+            elements.speedValue.textContent = parseFloat(rate).toFixed(2);
+            elements.speedSlider.value = rate;
+            elements.presetSpeeds.querySelectorAll('.yt-speed-preset').forEach(btn => {
+                btn.classList.toggle('active', parseFloat(btn.dataset.speed) === parseFloat(rate));
             });
         },
-        init(video, slider, presetSpeeds) {
-            slider.addEventListener('input', () => {
-                const rate = parseFloat(slider.value);
-                video.playbackRate = rate;
-                this.updatePlaybackRate(rate);
-            });
-            presetSpeeds.addEventListener('click', (e) => {
-                const btn = e.target.closest('.yt-speed-preset');
-                if (btn) {
-                    const rate = parseFloat(btn.dataset.speed);
-                    video.playbackRate = rate;
-                    this.updatePlaybackRate(rate);
-                }
-            });
+        init(video, elements) {
+            elements.speedSlider.addEventListener('input', () => { video.playbackRate = parseFloat(elements.speedSlider.value); this.updatePlaybackRate(video.playbackRate, elements); });
+            elements.presetSpeeds.addEventListener('click', (e) => { const btn = e.target.closest('.yt-speed-preset'); if (btn) { video.playbackRate = parseFloat(btn.dataset.speed); this.updatePlaybackRate(video.playbackRate, elements); } });
+            let lastRate = video.playbackRate;
+            const observer = setInterval(() => { const cv = document.querySelector('video'); if (cv && cv.playbackRate !== lastRate) { lastRate = cv.playbackRate; this.updatePlaybackRate(lastRate, elements); } }, 500);
+            playbackRateDisconnect = () => clearInterval(observer);
         }
     };
 
-    // Loop Controller Module
     const LoopController = {
-        init(video, toggle, startBtn, endBtn, clearBtn, info) {
+        loopStart: null,
+        loopEnd: null,
+        formatTime(seconds) { if (seconds === null || isNaN(seconds)) return ''; const mins = Math.floor(seconds / 60); const secs = Math.floor(seconds % 60); const ms = Math.round((seconds - Math.floor(seconds)) * 1000); return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${String(ms).padStart(3, '0')}`; },
+        parseTime(timeStr) { if (!timeStr) return null; const parts = timeStr.split(':'); let seconds = 0; try { if (parts.length === 2) { seconds = parseInt(parts[0], 10) * 60 + parseFloat(parts[1]); } else { seconds = parseFloat(parts[0]); } return isNaN(seconds) ? null : seconds; } catch (e) { return null; } },
+        init(video, elements) {
             let isLooping = video.loop;
-            let loopStart = null;
-            let loopEnd = null;
-
-            toggle.textContent = isLooping ? 'On' : 'Off';
-            toggle.classList.toggle('active', isLooping);
-
-            const updateLoopState = (newState, toggleBtn) => {
-                isLooping = newState;
-                toggleBtn.textContent = isLooping ? 'On' : 'Off';
-                toggleBtn.classList.toggle('active', isLooping);
-            };
-
-            toggle.addEventListener('click', () => {
-                isLooping = !isLooping;
-                video.loop = isLooping;
-                updateLoopState(isLooping, toggle);
-            });
-
-            startBtn.addEventListener('click', () => {
-                loopStart = video.currentTime;
-                this.updateLoopInfo(loopStart, loopEnd, info);
-            });
-
-            endBtn.addEventListener('click', () => {
-                loopEnd = video.currentTime;
-                this.updateLoopInfo(loopStart, loopEnd, info);
-            });
-
-            clearBtn.addEventListener('click', () => {
-                loopStart = null;
-                loopEnd = null;
-                this.updateLoopInfo(loopStart, loopEnd, info);
-            });
-
-            video.addEventListener('timeupdate', () => {
-                if (isLooping && loopStart !== null && loopEnd !== null && loopStart < loopEnd) {
-                    if (video.currentTime >= loopEnd) {
-                        video.currentTime = loopStart;
-                    }
-                }
-            });
-
-            const loopObserver = observeNativeLoop(video, toggle, updateLoopState);
-            loopDisconnect = loopObserver?.disconnect || (() => {});
-        },
-        updateLoopInfo(start, end, info) {
-            if (start !== null && end !== null) {
-                info.textContent = `From ${this.formatTime(start)} to ${this.formatTime(end)}`;
-            } else if (start !== null) {
-                info.textContent = `Start: ${this.formatTime(start)}, End: Not set`;
-            } else if (end !== null) {
-                info.textContent = `Start: Not set, End: ${this.formatTime(end)}`;
-            } else {
-                info.textContent = 'No loop range set';
-            }
-        },
-        formatTime(seconds) {
-            const mins = Math.floor(seconds / 60);
-            const secs = Math.floor(seconds % 60);
-            return `${mins}:${secs.toString().padStart(2, '0')}`;
+            const { loopToggle, loopStartBtn, loopEndBtn, loopClearBtn, loopStartInput, loopEndInput } = elements;
+            const updateLoopInputs = () => { loopStartInput.value = this.formatTime(this.loopStart); loopEndInput.value = this.formatTime(this.loopEnd); };
+            const updateLoopState = (newState) => { isLooping = newState; loopToggle.textContent = isLooping ? 'On' : 'Off'; loopToggle.classList.toggle('active', isLooping); };
+            updateLoopState(isLooping);
+            updateLoopInputs();
+            loopToggle.addEventListener('click', () => { video.loop = !video.loop; updateLoopState(video.loop); });
+            loopStartBtn.addEventListener('click', () => { this.loopStart = video.currentTime; updateLoopInputs(); });
+            loopEndBtn.addEventListener('click', () => { this.loopEnd = video.currentTime; updateLoopInputs(); });
+            loopClearBtn.addEventListener('click', () => { this.loopStart = null; this.loopEnd = null; updateLoopInputs(); });
+            loopStartInput.addEventListener('change', () => { const parsed = this.parseTime(loopStartInput.value); this.loopStart = parsed; loopStartInput.value = this.formatTime(parsed); });
+            loopEndInput.addEventListener('change', () => { const parsed = this.parseTime(loopEndInput.value); this.loopEnd = parsed; loopEndInput.value = this.formatTime(parsed); });
+            video.addEventListener('timeupdate', () => { if (isLooping && this.loopStart !== null && this.loopEnd !== null && this.loopStart < this.loopEnd && video.currentTime >= this.loopEnd) { video.currentTime = this.loopStart; } });
+            let lastLoopState = video.loop;
+            const observer = setInterval(() => { const cv = document.querySelector('video'); if (cv && cv.loop !== lastLoopState) { lastLoopState = cv.loop; updateLoopState(lastLoopState); } }, 500);
+            loopDisconnect = () => clearInterval(observer);
         }
     };
 
-    // Main initialization
-    async function init() {
-        const video = await waitForVideo();
-        cleanUpPanels();
-        const panel = createControlPanel();
-
-        setTimeout(() => {
-            const toggleBtn = document.getElementById('yt-toggle-panel');
-            const speedSlider = document.getElementById('yt-speed-slider');
-            const presetSpeeds = document.querySelector('.yt-preset-speeds');
-            const loopToggle = document.getElementById('yt-loop-toggle');
-            const loopStartBtn = document.getElementById('yt-loop-start-btn');
-            const loopEndBtn = document.getElementById('yt-loop-end-btn');
-            const loopClearBtn = document.getElementById('yt-loop-clear-btn');
-            const loopInfo = document.getElementById('yt-loop-info');
-
-            toggleBtn.addEventListener('click', () => {
-                panel.classList.toggle('expanded');
-                toggleBtn.textContent = panel.classList.contains('expanded') ? '_' : '≡';
+    const AutoConfirmController = {
+        observer: null,
+        isEnabled: false,
+        storageKey: 'yt-auto-confirm-enabled',
+        init(toggleButton) {
+            const savedState = localStorage.getItem(this.storageKey);
+            this.isEnabled = savedState === 'true';
+            this.updateButtonState(toggleButton);
+            if (this.isEnabled) this.start();
+            toggleButton.addEventListener('click', () => { this.isEnabled = !this.isEnabled; localStorage.setItem(this.storageKey, this.isEnabled); this.updateButtonState(toggleButton); this.isEnabled ? this.start() : this.stop(); });
+        },
+        updateButtonState(toggleButton) {
+            if (toggleButton) { toggleButton.textContent = this.isEnabled ? 'On' : 'Off'; toggleButton.classList.toggle('active', this.isEnabled); }
+        },
+        start() {
+            if (this.observer) return;
+            this.observer = new MutationObserver(() => {
+                const dialog = document.querySelector('yt-confirm-dialog-renderer');
+                if (dialog && dialog.offsetParent !== null) {
+                    console.log(`%c[YouTube Enhanced Controls]%c [${getFormattedTimestamp()}] Auto-clicked "Continue Watching?" dialog.`, 'font-weight: bold; color: #ff8c00;', 'color: inherit;');
+                    dialog.querySelector('#confirm-button')?.click();
+                }
             });
+            this.observer.observe(document.body, { childList: true, subtree: true });
+        },
+        stop() {
+            if (this.observer) { this.observer.disconnect(); this.observer = null; }
+        }
+    };
 
-            SpeedController.init(video, speedSlider, presetSpeeds);
-            LoopController.init(video, loopToggle, loopStartBtn, loopEndBtn, loopClearBtn, loopInfo);
-            const playbackRateObserver = observePlaybackRate(video);
-            playbackRateDisconnect = playbackRateObserver?.disconnect || (() => {});
-            SpeedController.updatePlaybackRate(video.playbackRate || 1);
-        }, 2000);
+    async function init() {
+        if (isInitializing) return;
+        isInitializing = true;
+
+        try {
+            document.getElementById(PANEL_ID)?.remove();
+            cleanUpVideoFeatures();
+
+            const anchorElement = await waitForElement(
+                'ytd-masthead #end #buttons #avatar-btn, ytd-masthead #end #buttons ytd-button-renderer'
+            );
+
+            const buttonsContainer = anchorElement.closest('#buttons');
+
+            if (!buttonsContainer) {
+                console.error('[YouTube Enhanced Controls] Found an anchor button, but could not find its parent #buttons container.');
+                return;
+            }
+
+            const panelElements = createAndSetupControlPanel(buttonsContainer);
+            AutoConfirmController.init(panelElements.autoConfirmToggle);
+
+            if (window.location.pathname.startsWith('/watch')) {
+                try {
+                    const video = await waitForElement('video');
+
+                    if (video.paused && video.currentTime < 3 && AutoConfirmController.isEnabled && document.hidden) {
+                        console.log(`%c[YouTube Enhanced Controls]%c [${getFormattedTimestamp()}] Page is in background and new video is paused (at ${video.currentTime.toFixed(2)}s). Attempting to play proactively...`, 'font-weight: bold; color: #ff8c00;', 'color: inherit;');
+                        video.play().catch(error => {
+                            console.warn(`%c[YouTube Enhanced Controls]%c [${getFormattedTimestamp()}] Proactive play failed. Browser may have blocked it. Error:`, 'font-weight: bold; color: #ff8c00;', error);
+                        });
+                    }
+
+                    panelElements.speedSection.style.display = 'block';
+                    panelElements.loopSection.style.display = 'flex';
+                    panelElements.loopRangeSection.style.display = 'block';
+                    SpeedController.init(video, panelElements);
+                    LoopController.init(video, panelElements);
+                    SpeedController.updatePlaybackRate(video.playbackRate, panelElements);
+                } catch (error) {
+                    panelElements.speedSection.style.display = 'none';
+                    panelElements.loopSection.style.display = 'none';
+                    panelElements.loopRangeSection.style.display = 'none';
+                }
+            } else {
+                panelElements.speedSection.style.display = 'none';
+                panelElements.loopSection.style.display = 'none';
+                panelElements.loopRangeSection.style.display = 'none';
+            }
+        } finally {
+            isInitializing = false;
+        }
     }
 
-    // Ensure DOM is loaded
-    document.addEventListener('DOMContentLoaded', () => {
-        if (!document.body) return;
-        setTimeout(init, 1000);
+    document.addEventListener('yt-navigate-finish', init);
+
+    const titleObserver = new MutationObserver(init);
+    waitForElement('title').then(titleElement => {
+        titleObserver.observe(titleElement, { childList: true });
     });
 
-    // Detect page navigation
-    let lastUrl = location.href;
-    const observer = new MutationObserver(() => {
-        if (lastUrl !== location.href) {
-            lastUrl = location.href;
-            cleanUpPanels();
-            setTimeout(init, 1000);
-        }
-    });
-    observer.observe(document, { subtree: true, childList: true });
 })();
