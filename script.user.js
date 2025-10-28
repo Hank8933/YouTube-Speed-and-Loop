@@ -2,9 +2,9 @@
 // @name               YouTube Speed and Loop
 // @name:zh-TW         YouTube 播放速度與循環
 // @namespace          https://github.com/Hank8933
-// @version            1.1.0
-// @description        Enhances YouTube with playback speeds beyond 2x and repeat functionality
-// @description:zh-TW  為 YouTube 提供超過 2 倍的播放速度控制和重複播放功能
+// @version            1.1.1
+// @description        Enhances YouTube with playback speeds and repeat functionality.
+// @description:zh-TW  為 YouTube 提供超過 2 倍的播放速度控制和重複播放功能。
 // @author             Hank8933
 // @homepage           https://github.com/Hank8933/YouTube-Speed-and-Loop
 // @match              https://www.youtube.com/*
@@ -12,7 +12,7 @@
 // @license            MIT
 // ==/UserScript==
 
-(function() {
+(function () {
     'use strict';
 
     const PANEL_ID = 'yt-enhancements-panel';
@@ -56,14 +56,14 @@
         .yt-custom-btn:last-child { margin-right: 0; }
         .yt-custom-btn:hover { background-color: rgba(255, 255, 255, 0.25); }
         .yt-custom-btn.active { background-color: var(--active-bg); }
-        .yt-custom-btn-group { display: flex; justify-content: space-between; }
+        .yt-custom-btn-group { display: flex; justify-content: space-between; padding: 0 8px; }
         .yt-speed-controls { display: flex; flex-direction: column; gap: 8px; white-space: nowrap; }
         .yt-slider-row { display: flex; align-items: center; width: 100%; }
         .yt-custom-slider { flex-grow: 1; min-width: 100px; }
         .yt-preset-speeds { display: flex; gap: 5px; width: 100%; }
         .loop-input-container {
             display: flex; align-items: center; justify-content: space-between;
-            gap: 8px; margin-top: 10px;
+            gap: 8px; margin-top: 10px; padding: 0 8px;
         }
         .loop-time-input {
             width: 100%; background-color: var(--input-bg);
@@ -75,12 +75,31 @@
             outline: none; border-color: #3ea6ff;
             box-shadow: 0 0 5px rgba(62, 166, 255, 0.5);
         }
-        .yt-custom-toggle-section {
+        .yt-custom-row {
             display: flex; justify-content: space-between; align-items: center;
-            padding: 4px 8px;
+            gap: 10px; padding: 4px 8px;
         }
-        .yt-custom-toggle-section .yt-custom-btn {
+        .yt-custom-row:not(:last-child) { margin-bottom: 8px; }
+        .yt-custom-label {
+            font-size: 14px; flex-shrink: 0;
+        }
+        .yt-custom-row .shortcut-label {
+            flex-basis: 120px; /* Fixed width for alignment */
+            text-align: right;
+        }
+        .yt-custom-toggle-btn {
             flex-grow: 0; min-width: 60px; margin-right: 0;
+        }
+        .shortcut-input {
+            flex-grow: 1; /* Takes remaining space */
+            background-color: var(--input-bg);
+            border: 1px solid var(--input-border); color: var(--text-color);
+            border-radius: 8px; padding: 8px; font-family: 'Courier New', Courier, monospace;
+            font-size: 14px; text-align: center; cursor: pointer;
+        }
+        .shortcut-input:focus {
+            outline: none; border-color: #3ea6ff;
+            box-shadow: 0 0 5px rgba(62, 166, 255, 0.5);
         }
     `;
     const styleEl = document.createElement('style');
@@ -103,15 +122,15 @@
         return el;
     }
 
-    let playbackRateDisconnect = () => {};
-    let loopDisconnect = () => {};
+    let playbackRateDisconnect = () => { };
+    let loopDisconnect = () => { };
 
     function cleanUpVideoFeatures() {
         playbackRateDisconnect();
         loopDisconnect();
         AutoConfirmController.stop();
-        playbackRateDisconnect = () => {};
-        loopDisconnect = () => {};
+        playbackRateDisconnect = () => { };
+        loopDisconnect = () => { };
     }
 
     function createAndSetupControlPanel(container) {
@@ -125,7 +144,7 @@
         const titleDiv = createElement('div', null, 'yt-custom-control-title', 'YouTube Enhanced Controls');
 
         const speedSection = createElement('div', null, 'yt-custom-control-section');
-        const speedText = createElement('div', null, null, 'Playback Speed: ');
+        const speedText = createElement('div', null, 'yt-custom-control-title', 'Playback Speed: ');
         const speedValue = createElement('span', null, null, '1.0');
         speedText.appendChild(speedValue); speedText.append('x');
         const speedControls = createElement('div', null, 'yt-speed-controls');
@@ -138,13 +157,12 @@
         speedControls.append(sliderRow, presetSpeeds);
         speedSection.append(speedText, speedControls);
 
-        const loopSection = createElement('div', null, 'yt-custom-control-section yt-custom-toggle-section');
-        loopSection.appendChild(createElement('span', null, null, 'Loop Playback'));
-        const loopToggle = createElement('button', null, 'yt-custom-btn', 'Off');
-        loopSection.appendChild(loopToggle);
-
-        const loopRangeSection = createElement('div', null, 'yt-custom-control-section');
-        loopRangeSection.appendChild(createElement('span', null, null, 'Loop Range'));
+        const loopSection = createElement('div', null, 'yt-custom-control-section');
+        loopSection.appendChild(createElement('div', null, 'yt-custom-control-title', 'Loop Controls'));
+        const loopToggleRow = createElement('div', null, 'yt-custom-row');
+        loopToggleRow.appendChild(createElement('label', null, 'yt-custom-label', 'Loop Playback'));
+        const loopToggle = createElement('button', null, 'yt-custom-btn yt-custom-toggle-btn', 'Off');
+        loopToggleRow.appendChild(loopToggle);
         const rangeButtons = createElement('div', null, 'yt-custom-btn-group');
         const loopStartBtn = createElement('button', null, 'yt-custom-btn', 'Set Start');
         const loopEndBtn = createElement('button', null, 'yt-custom-btn', 'Set End');
@@ -157,29 +175,51 @@
         const loopEndInput = createElement('input', null, 'loop-time-input');
         loopEndInput.type = 'text'; loopEndInput.placeholder = '00:00.000';
         loopInputContainer.append(loopStartInput, loopInputSeparator, loopEndInput);
-        loopRangeSection.append(rangeButtons, loopInputContainer);
+        loopSection.append(loopToggleRow, rangeButtons, loopInputContainer);
 
-        const autoConfirmSection = createElement('div', null, 'yt-custom-control-section yt-custom-toggle-section');
-        autoConfirmSection.appendChild(createElement('span', null, null, 'Auto-Click "Continue watching?"'));
-        const autoConfirmToggle = createElement('button', null, 'yt-custom-btn', 'Off');
-        autoConfirmSection.appendChild(autoConfirmToggle);
+        const shortcutSection = createElement('div', null, 'yt-custom-control-section');
+        shortcutSection.appendChild(createElement('div', null, 'yt-custom-control-title', 'Keyboard Shortcuts'));
 
-        contentDiv.append(titleDiv, speedSection, loopSection, loopRangeSection, autoConfirmSection);
+        const createShortcutRow = (label, id) => {
+            const row = createElement('div', null, 'yt-custom-row');
+            row.appendChild(createElement('label', null, 'yt-custom-label shortcut-label', label));
+            const input = createElement('input', id, 'shortcut-input');
+            input.type = 'text'; input.placeholder = 'Click and press a key'; input.readOnly = true;
+            row.appendChild(input);
+            return { row, input };
+        };
+
+        const { row: setStartRow, input: shortcutSetStartInput } = createShortcutRow('Set Start:', 'shortcut-set-start');
+        const { row: replayStartRow, input: shortcutReplayStartInput } = createShortcutRow('Jump to Start:', 'shortcut-replay-start');
+        const { row: setEndRow, input: shortcutSetEndInput } = createShortcutRow('Set End:', 'shortcut-set-end');
+        const { row: clearLoopRow, input: shortcutClearLoopInput } = createShortcutRow('Clear Loop:', 'shortcut-clear-loop');
+
+        shortcutSection.append(setStartRow, replayStartRow, setEndRow, clearLoopRow);
+
+        const autoConfirmSection = createElement('div', null, 'yt-custom-control-section');
+        const autoConfirmRow = createElement('div', null, 'yt-custom-row');
+        autoConfirmRow.appendChild(createElement('label', null, 'yt-custom-label', 'Auto-Click "Continue watching?"'));
+        const autoConfirmToggle = createElement('button', null, 'yt-custom-btn yt-custom-toggle-btn', 'Off');
+        autoConfirmRow.appendChild(autoConfirmToggle);
+        autoConfirmSection.appendChild(autoConfirmRow);
+
+        contentDiv.append(titleDiv, speedSection, loopSection, shortcutSection, autoConfirmSection);
         panel.append(toggleBtn, contentDiv);
         container.prepend(panel);
 
         return {
             speedSection, speedValue, speedSlider, presetSpeeds,
             loopSection, loopToggle,
-            loopRangeSection, loopStartBtn, loopEndBtn, loopClearBtn, loopStartInput, loopEndInput,
+            loopStartBtn, loopEndBtn, loopClearBtn, loopStartInput, loopEndInput,
+            shortcutSetStartInput, shortcutReplayStartInput, shortcutSetEndInput, shortcutClearLoopInput,
             autoConfirmToggle
         };
     }
 
-    function waitForElement(selector) {
+    function waitForElement(selector, parent = document) {
         return new Promise(resolve => {
             const interval = setInterval(() => {
-                const element = document.querySelector(selector);
+                const element = parent.querySelector(selector);
                 if (element) {
                     clearInterval(interval);
                     resolve(element);
@@ -261,65 +301,115 @@
         }
     };
 
+    const ShortcutController = {
+        config: {},
+        storageKey: 'yt-speed-loop-shortcuts',
+        elements: {},
+        actions: ['setStart', 'replayStart', 'setEnd', 'clearLoop'],
+        init(uiElements) {
+            this.elements = {
+                setStart: uiElements.shortcutSetStartInput,
+                replayStart: uiElements.shortcutReplayStartInput,
+                setEnd: uiElements.shortcutSetEndInput,
+                clearLoop: uiElements.shortcutClearLoopInput,
+                loopStartInput: uiElements.loopStartInput,
+                loopEndInput: uiElements.loopEndInput
+            };
+            this.loadConfig();
+            this.updateAllInputs();
+            this.actions.forEach(action => {
+                const element = this.elements[action];
+                if (element) {
+                    element.addEventListener('keydown', e => this.captureShortcut(e, action));
+                    element.addEventListener('blur', () => this.updateInput(action));
+                }
+            });
+            document.addEventListener('keydown', e => this.handleGlobalKeyDown(e));
+        },
+        loadConfig() { try { const savedConfig = localStorage.getItem(this.storageKey); this.config = savedConfig ? JSON.parse(savedConfig) : {}; } catch (e) { console.error('[YouTube Enhanced Controls] Error loading shortcut config:', e); this.config = {}; } },
+        saveConfig() { localStorage.setItem(this.storageKey, JSON.stringify(this.config)); },
+        updateInput(action) { const keyConfig = this.config[action]; const inputEl = this.elements[action]; if (!inputEl) return; inputEl.value = keyConfig ? this.formatKey(keyConfig) : ''; if (!inputEl.value) inputEl.placeholder = 'Click and press a key'; },
+        updateAllInputs() { this.actions.forEach(action => this.updateInput(action)); },
+        formatKey(keyEvent) { if (!keyEvent || !keyEvent.key) return ''; const parts = []; if (keyEvent.ctrlKey) parts.push('Ctrl'); if (keyEvent.altKey) parts.push('Alt'); if (keyEvent.shiftKey) parts.push('Shift'); const key = keyEvent.key.trim(); if (key && !['Control', 'Alt', 'Shift', 'Meta'].includes(keyEvent.key)) { parts.push(key.length === 1 ? key.toUpperCase() : key); } return parts.join(' + '); },
+        captureShortcut(event, action) {
+            event.preventDefault(); event.stopPropagation();
+            if (['Control', 'Alt', 'Shift', 'Meta'].includes(event.key)) return;
+            const newConfig = { key: event.key, code: event.code, ctrlKey: event.ctrlKey, altKey: event.altKey, shiftKey: event.shiftKey };
+            this.config[action] = newConfig;
+            this.elements[action].value = this.formatKey(newConfig);
+            this.saveConfig();
+            this.elements[action].blur();
+        },
+        handleGlobalKeyDown(event) {
+            if (['INPUT', 'TEXTAREA'].includes(event.target.tagName) || event.target.isContentEditable) return;
+            for (const action in this.config) {
+                const savedKey = this.config[action];
+                if (savedKey && savedKey.key === event.key && savedKey.ctrlKey === event.ctrlKey && savedKey.altKey === event.altKey && savedKey.shiftKey === event.shiftKey) { event.preventDefault(); event.stopPropagation(); this.executeAction(action); return; }
+            }
+        },
+        executeAction(action) {
+            const video = document.querySelector('video');
+            if (!video) return;
+            switch (action) {
+                case 'setStart':
+                    LoopController.loopStart = video.currentTime;
+                    if (this.elements.loopStartInput) this.elements.loopStartInput.value = LoopController.formatTime(LoopController.loopStart);
+                    break;
+                case 'replayStart':
+                    if (LoopController.loopStart !== null) video.currentTime = LoopController.loopStart;
+                    break;
+                case 'setEnd':
+                    LoopController.loopEnd = video.currentTime;
+                    if (this.elements.loopEndInput) this.elements.loopEndInput.value = LoopController.formatTime(LoopController.loopEnd);
+                    break;
+                case 'clearLoop':
+                    LoopController.loopStart = null;
+                    LoopController.loopEnd = null;
+                    if (this.elements.loopStartInput) this.elements.loopStartInput.value = LoopController.formatTime(null);
+                    if (this.elements.loopEndInput) this.elements.loopEndInput.value = LoopController.formatTime(null);
+                    break;
+            }
+        }
+    };
+
     async function init() {
         if (isInitializing) return;
         isInitializing = true;
-
         try {
             document.getElementById(PANEL_ID)?.remove();
             cleanUpVideoFeatures();
-
-            const anchorElement = await waitForElement(
-                'ytd-masthead #end #buttons #avatar-btn, ytd-masthead #end #buttons ytd-button-renderer'
-            );
-
+            const anchorElement = await waitForElement('ytd-masthead #end #buttons #avatar-btn, ytd-masthead #end #buttons ytd-button-renderer');
             const buttonsContainer = anchorElement.closest('#buttons');
-
-            if (!buttonsContainer) {
-                console.error('[YouTube Enhanced Controls] Found an anchor button, but could not find its parent #buttons container.');
-                return;
-            }
+            if (!buttonsContainer) { console.error('[YouTube Enhanced Controls] Could not find #buttons container.'); return; }
 
             const panelElements = createAndSetupControlPanel(buttonsContainer);
             AutoConfirmController.init(panelElements.autoConfirmToggle);
+            ShortcutController.init(panelElements);
 
-            if (window.location.pathname.startsWith('/watch')) {
+            const videoContainer = document.querySelector('ytd-watch-flexy');
+            const isWatchPage = !!videoContainer;
+            panelElements.speedSection.style.display = isWatchPage ? 'block' : 'none';
+            panelElements.loopSection.style.display = isWatchPage ? 'block' : 'none';
+            document.querySelectorAll('.shortcut-input').forEach(el => { el.closest('.yt-custom-row').style.display = isWatchPage ? 'flex' : 'none'; });
+
+            if (isWatchPage) {
                 try {
-                    const video = await waitForElement('video');
-
+                    const video = await waitForElement('video', videoContainer);
                     if (video.paused && video.currentTime < 3 && AutoConfirmController.isEnabled && document.hidden) {
-                        console.log(`%c[YouTube Enhanced Controls]%c [${getFormattedTimestamp()}] Page is in background and new video is paused (at ${video.currentTime.toFixed(2)}s). Attempting to play proactively...`, 'font-weight: bold; color: #ff8c00;', 'color: inherit;');
-                        video.play().catch(error => {
-                            console.warn(`%c[YouTube Enhanced Controls]%c [${getFormattedTimestamp()}] Proactive play failed. Browser may have blocked it. Error:`, 'font-weight: bold; color: #ff8c00;', error);
-                        });
+                        console.log(`%c[YouTube Enhanced Controls]%c [${getFormattedTimestamp()}] Proactively playing video in background...`, 'font-weight: bold; color: #ff8c00;', 'color: inherit;');
+                        video.play().catch(e => console.warn(`%c[YouTube Enhanced Controls]%c Proactive play failed:`, 'font-weight: bold; color: #ff8c00;', e));
                     }
-
-                    panelElements.speedSection.style.display = 'block';
-                    panelElements.loopSection.style.display = 'flex';
-                    panelElements.loopRangeSection.style.display = 'block';
                     SpeedController.init(video, panelElements);
                     LoopController.init(video, panelElements);
                     SpeedController.updatePlaybackRate(video.playbackRate, panelElements);
                 } catch (error) {
                     panelElements.speedSection.style.display = 'none';
                     panelElements.loopSection.style.display = 'none';
-                    panelElements.loopRangeSection.style.display = 'none';
                 }
-            } else {
-                panelElements.speedSection.style.display = 'none';
-                panelElements.loopSection.style.display = 'none';
-                panelElements.loopRangeSection.style.display = 'none';
             }
-        } finally {
-            isInitializing = false;
-        }
+        } finally { isInitializing = false; }
     }
 
     document.addEventListener('yt-navigate-finish', init);
-
-    const titleObserver = new MutationObserver(init);
-    waitForElement('title').then(titleElement => {
-        titleObserver.observe(titleElement, { childList: true });
-    });
-
+    waitForElement('title').then(titleElement => { new MutationObserver(init).observe(titleElement, { childList: true }); });
 })();
