@@ -37,7 +37,13 @@ The full panel with all options visible.
 
 ## 📦 Changelog
 
-- **v1.1.0** (Current)
+- **v1.1.1** (Current)
+
+    - ✨ Feature: Added a keyboard shortcuts manager.
+        - You can now set custom keys for: Set Start, Jump to Start, Set End, and Clear Loop.
+    - 🎨 UI/UX: Refined the control panel layout for better readability and alignment.
+
+- **v1.1.0**
 
     - ✨ Feature: Added an auto-clicker for the "Continue Watching?" dialog and precise manual inputs for loop timing.
 
