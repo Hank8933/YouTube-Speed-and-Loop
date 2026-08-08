@@ -1,22 +1,22 @@
 import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import { readSourceTree } from "./source-tree.mjs";
 import {
+  assembleUserscript,
   normalizeLineEndings,
   outputPath,
   projectRoot,
-  sourcePath,
-  validateUserscript,
 } from "./userscript.mjs";
 
 const checkOnly = process.argv.includes("--check");
 const packagePath = path.join(projectRoot, "package.json");
 const packageJson = JSON.parse(await readFile(packagePath, "utf8"));
-const source = validateUserscript(
-  await readFile(sourcePath, "utf8"),
-  packageJson.version,
-  path.relative(projectRoot, sourcePath),
-);
+const sourceTree = await readSourceTree();
+const source = assembleUserscript({
+  ...sourceTree,
+  expectedVersion: packageJson.version,
+});
 
 if (checkOnly) {
   let output = null;
@@ -50,7 +50,5 @@ if (checkOnly) {
     await rm(temporaryPath, { force: true });
   }
 
-  console.log(
-    `${path.relative(projectRoot, outputPath)} generated from ${path.relative(projectRoot, sourcePath)}.`,
-  );
+  console.log("script.user.js assembled from the source manifest.");
 }
