@@ -3,7 +3,7 @@
   "version": "1.2.0",
   "private": true,
   "type": "module",
-  "description": "Build and verification tooling for the YouTube Speed and A-B Loop userscript.",
+  "description": "Build, source assembly, and verification tooling for the YouTube Speed and A-B Loop userscript.",
   "engines": {
     "node": ">=20"
   },

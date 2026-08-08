@@ -1,0 +1,15 @@
+// ==UserScript==
+// @name               YouTube Speed and A-B Loop
+// @name:zh-TW         YouTube 播放速度與 A-B 循環
+// @namespace          https://github.com/Hank8933
+// @version            1.2.0
+// @description        Playback speed and stable A-B Loop for regular videos and Shorts, with records, shortcuts, multilingual settings, and JSON backup.
+// @description:zh-TW  支援一般影片與 Shorts 的播放速度、穩定 A-B 循環、逐影片紀錄、快捷鍵、多語系與 JSON 備份。
+// @author             Hank8933
+// @homepage           https://github.com/Hank8933/YouTube-Speed-and-Loop
+// @match              https://www.youtube.com/*
+// @grant              none
+// @run-at             document-start
+// @noframes
+// @license            MIT
+// ==/UserScript==

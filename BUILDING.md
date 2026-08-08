@@ -1,34 +1,62 @@
 # Development
 
-`src/userscript.js` is the editable source of the Tampermonkey userscript.
-The repository-root `script.user.js` is the installable artifact consumed by
-Tampermonkey and Greasy Fork.
+The userscript source is split by responsibility under `src/`. The metadata
+block lives in `src/metadata.txt`, while `scripts/source-manifest.mjs` defines
+the deterministic assembly order for the JavaScript source files.
+
+The repository-root `script.user.js` is the generated installable artifact used
+by Tampermonkey and Greasy Fork.
 
 ## Requirements
 
 - Node.js 20 or newer
 
-No third-party npm packages are required by this bootstrap pipeline.
+No third-party npm packages are required.
 
 ## Commands
 
 ```bash
+npm ci
 npm run build
 npm run verify
 ```
 
-`npm run build` validates the userscript metadata and reproduces
-`script.user.js` from `src/userscript.js` using LF line endings and an atomic
-file replacement.
+`npm run build` performs the following steps:
 
-`npm run verify` checks that the generated artifact is current, validates both
-files with classic-script syntax (the form used by Tampermonkey), and runs the
-Node.js test suite.
+1. checks that every JavaScript file under `src/` is listed exactly once in the
+   source manifest;
+2. validates the metadata block and its version;
+3. validates each source file as classic JavaScript;
+4. assembles the files inside one userscript IIFE using LF line endings; and
+5. writes `script.user.js` through a temporary file before renaming it into
+   place.
 
-Do not edit `script.user.js` directly. Make changes in `src/userscript.js`, run
-`npm run build`, and commit both files.
+`npm run verify` checks that the generated artifact is current, validates the
+source files and output syntax, and runs the Node.js test suite.
 
-This bootstrap step intentionally preserves the v1.2.0 script byte-for-byte
-apart from normalized LF line endings. Source modules and a bundler belong in a
-separate refactoring change so build-system regressions and module-wiring
-regressions remain independently reviewable.
+Do not edit `script.user.js` directly. Edit the appropriate file under `src/`,
+run `npm run build`, and commit both the source changes and generated artifact.
+
+## Source layout
+
+```text
+src/
+├─ metadata.txt
+├─ config/
+├─ core/
+├─ i18n/
+├─ storage/
+├─ services/
+├─ controllers/
+├─ youtube/
+├─ ui/
+│  └─ panel-view/
+├─ app/
+└─ main.js
+```
+
+Most files are classic-script source fragments rather than independently loaded
+browser modules. Large classes may be stored as independently valid class fragments;
+the build removes their duplicate class wrappers and rejoins the method bodies in
+manifest order. Their order is explicit in `scripts/source-manifest.mjs`, and
+they are always distributed as the single generated `script.user.js` file.

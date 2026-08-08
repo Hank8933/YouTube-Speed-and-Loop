@@ -1,14 +1,21 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { readSourceTree } from "./source-tree.mjs";
 import {
   outputPath,
   projectRoot,
-  sourcePath,
   validateClassicScriptSyntax,
+  validateSourceFragment,
 } from "./userscript.mjs";
 
-for (const filePath of [sourcePath, outputPath]) {
-  const filename = path.relative(projectRoot, filePath);
-  validateClassicScriptSyntax(await readFile(filePath, "utf8"), filename);
-  console.log(`${filename} has valid classic-script syntax.`);
+const { sourceFragments } = await readSourceTree();
+
+for (const fragment of sourceFragments) {
+  validateSourceFragment(fragment.content, fragment.filename);
 }
+
+const outputName = path.relative(projectRoot, outputPath);
+validateClassicScriptSyntax(await readFile(outputPath, "utf8"), outputName);
+console.log(
+  `${sourceFragments.length} source files and ${outputName} have valid classic-script syntax.`,
+);
