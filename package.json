@@ -1,0 +1,17 @@
+{
+  "name": "youtube-speed-and-loop",
+  "version": "1.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Build and verification tooling for the YouTube Speed and A-B Loop userscript.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:check": "node scripts/build.mjs --check",
+    "check:syntax": "node scripts/check-syntax.mjs",
+    "test": "node --test",
+    "verify": "npm run build:check && npm run check:syntax && npm test"
+  }
+}
