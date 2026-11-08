@@ -45,3 +45,38 @@ function createRecordUrl(record, shortsAsWatch) {
   target.searchParams.set("v", record.videoId);
   return target;
 }
+
+function createShortsWatchLink(rawHref, baseUrl = document.baseURI) {
+  if (typeof rawHref !== "string" || !rawHref.includes("shorts/")) {
+    return null;
+  }
+
+  try {
+    const source = new URL(rawHref, baseUrl);
+    const hosts = ["youtube.com", "www.youtube.com", "m.youtube.com"];
+    const match = source.pathname.match(/^\/shorts\/([A-Za-z0-9_-]{11})\/?$/);
+
+    if (
+      !match ||
+      !["http:", "https:"].includes(source.protocol) ||
+      !hosts.includes(source.hostname) ||
+      source.port || source.username || source.password
+    ) {
+      return null;
+    }
+
+    const target = new URL("/watch", source.origin);
+    target.searchParams.set("v", match[1]);
+
+    for (const [key, value] of source.searchParams) {
+      if (key !== "v") {
+        target.searchParams.append(key, value);
+      }
+    }
+
+    target.hash = source.hash;
+    return target.href;
+  } catch {
+    return null;
+  }
+}

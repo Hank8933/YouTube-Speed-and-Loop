@@ -143,6 +143,7 @@ function defaultState() {
       speedStep: SPEED.defaultShortcutStep,
       autoConfirm: false,
       shortsAsWatch: false,
+      rewriteShortsLinks: false,
     },
     shortcuts: {},
     loops: {},
@@ -154,6 +155,9 @@ function normalizeState(value) {
   const preferences = isPlainObject(source.preferences)
     ? source.preferences
     : {};
+  const rewriteShortsLinks =
+    preferences.rewriteShortsLinks === true ||
+    preferences.rewriteShortsLinks === "true";
   const loops = {};
 
   if (isPlainObject(source.loops)) {
@@ -176,8 +180,10 @@ function normalizeState(value) {
         preferences.autoConfirm === true ||
         preferences.autoConfirm === "true",
       shortsAsWatch:
-        preferences.shortsAsWatch === true ||
-        preferences.shortsAsWatch === "true",
+        !rewriteShortsLinks &&
+        (preferences.shortsAsWatch === true ||
+          preferences.shortsAsWatch === "true"),
+      rewriteShortsLinks,
     },
     shortcuts: normalizeShortcuts(source.shortcuts),
     loops,

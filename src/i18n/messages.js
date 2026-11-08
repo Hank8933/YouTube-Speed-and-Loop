@@ -30,8 +30,10 @@ const TEXT = Object.freeze({
     language: "介面語言",
     autoLanguage: "自動（瀏覽器）",
     speedStep: "倍速快捷鍵步進",
-    shortsAsWatch: "Shorts 使用一般影片介面",
-    shortsAsWatchHint: "開啟後，/shorts/ 會重新導向標準 /watch 播放頁。",
+    shortsAsWatch: "Shorts 使用一般影片介面（重導向）",
+    shortsAsWatchHint: "開啟後，/shorts/ 會重新導向 /watch，並關閉直接改寫連結模式。",
+    rewriteShortsLinks: "直接改寫 Shorts 連結（不重導向）",
+    rewriteShortsLinksHint: "先將頁面內的 Shorts 連結改為 /watch；保留時間與播放清單參數。開啟會關閉重導向；直接貼入 /shorts/ 網址不會跳轉。",
     autoConfirm: "自動點擊「繼續觀看」",
 
     shortcuts: "快捷鍵",
@@ -128,8 +130,10 @@ const TEXT = Object.freeze({
     language: "界面语言",
     autoLanguage: "自动（浏览器）",
     speedStep: "倍速快捷键步进",
-    shortsAsWatch: "Shorts 使用普通视频界面",
-    shortsAsWatchHint: "开启后，/shorts/ 会重定向到标准 /watch 播放页。",
+    shortsAsWatch: "Shorts 使用普通视频界面（重定向）",
+    shortsAsWatchHint: "开启后，/shorts/ 会重定向到 /watch，并关闭直接改写链接模式。",
+    rewriteShortsLinks: "直接改写 Shorts 链接（不重定向）",
+    rewriteShortsLinksHint: "预先将页面内的 Shorts 链接改为 /watch，保留时间和播放列表参数。开启会关闭重定向；直接粘贴 /shorts/ 地址不会跳转。",
     autoConfirm: "自动点击“继续观看”",
 
     shortcuts: "快捷键",
@@ -229,9 +233,12 @@ const TEXT = Object.freeze({
     language: "Interface language",
     autoLanguage: "Automatic (browser)",
     speedStep: "Speed shortcut step",
-    shortsAsWatch: "Use the standard video page for Shorts",
+    shortsAsWatch: "Use the standard video page for Shorts (redirect)",
     shortsAsWatchHint:
-      "When enabled, /shorts/ URLs are redirected to the standard /watch player.",
+      "Redirect /shorts/ pages to /watch. Enabling this turns off direct-link mode.",
+    rewriteShortsLinks: "Rewrite Shorts links directly (no redirect)",
+    rewriteShortsLinksHint:
+      "Rewrite page links to /watch before opening, keeping timestamps and playlist parameters. Disables redirects; pasting a /shorts/ URL does not redirect.",
     autoConfirm: "Automatically click “Continue watching”",
 
     shortcuts: "Keyboard shortcuts",

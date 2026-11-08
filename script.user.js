@@ -208,8 +208,10 @@
       language: "介面語言",
       autoLanguage: "自動（瀏覽器）",
       speedStep: "倍速快捷鍵步進",
-      shortsAsWatch: "Shorts 使用一般影片介面",
-      shortsAsWatchHint: "開啟後，/shorts/ 會重新導向標準 /watch 播放頁。",
+      shortsAsWatch: "Shorts 使用一般影片介面（重導向）",
+      shortsAsWatchHint: "開啟後，/shorts/ 會重新導向 /watch，並關閉直接改寫連結模式。",
+      rewriteShortsLinks: "直接改寫 Shorts 連結（不重導向）",
+      rewriteShortsLinksHint: "先將頁面內的 Shorts 連結改為 /watch；保留時間與播放清單參數。開啟會關閉重導向；直接貼入 /shorts/ 網址不會跳轉。",
       autoConfirm: "自動點擊「繼續觀看」",
 
       shortcuts: "快捷鍵",
@@ -306,8 +308,10 @@
       language: "界面语言",
       autoLanguage: "自动（浏览器）",
       speedStep: "倍速快捷键步进",
-      shortsAsWatch: "Shorts 使用普通视频界面",
-      shortsAsWatchHint: "开启后，/shorts/ 会重定向到标准 /watch 播放页。",
+      shortsAsWatch: "Shorts 使用普通视频界面（重定向）",
+      shortsAsWatchHint: "开启后，/shorts/ 会重定向到 /watch，并关闭直接改写链接模式。",
+      rewriteShortsLinks: "直接改写 Shorts 链接（不重定向）",
+      rewriteShortsLinksHint: "预先将页面内的 Shorts 链接改为 /watch，保留时间和播放列表参数。开启会关闭重定向；直接粘贴 /shorts/ 地址不会跳转。",
       autoConfirm: "自动点击“继续观看”",
 
       shortcuts: "快捷键",
@@ -407,9 +411,12 @@
       language: "Interface language",
       autoLanguage: "Automatic (browser)",
       speedStep: "Speed shortcut step",
-      shortsAsWatch: "Use the standard video page for Shorts",
+      shortsAsWatch: "Use the standard video page for Shorts (redirect)",
       shortsAsWatchHint:
-        "When enabled, /shorts/ URLs are redirected to the standard /watch player.",
+        "Redirect /shorts/ pages to /watch. Enabling this turns off direct-link mode.",
+      rewriteShortsLinks: "Rewrite Shorts links directly (no redirect)",
+      rewriteShortsLinksHint:
+        "Rewrite page links to /watch before opening, keeping timestamps and playlist parameters. Disables redirects; pasting a /shorts/ URL does not redirect.",
       autoConfirm: "Automatically click “Continue watching”",
 
       shortcuts: "Keyboard shortcuts",
@@ -1150,6 +1157,7 @@
         speedStep: SPEED.defaultShortcutStep,
         autoConfirm: false,
         shortsAsWatch: false,
+        rewriteShortsLinks: false,
       },
       shortcuts: {},
       loops: {},
@@ -1161,6 +1169,9 @@
     const preferences = isPlainObject(source.preferences)
       ? source.preferences
       : {};
+    const rewriteShortsLinks =
+      preferences.rewriteShortsLinks === true ||
+      preferences.rewriteShortsLinks === "true";
     const loops = {};
 
     if (isPlainObject(source.loops)) {
@@ -1183,8 +1194,10 @@
           preferences.autoConfirm === true ||
           preferences.autoConfirm === "true",
         shortsAsWatch:
-          preferences.shortsAsWatch === true ||
-          preferences.shortsAsWatch === "true",
+          !rewriteShortsLinks &&
+          (preferences.shortsAsWatch === true ||
+            preferences.shortsAsWatch === "true"),
+        rewriteShortsLinks,
       },
       shortcuts: normalizeShortcuts(source.shortcuts),
       loops,
@@ -1346,10 +1359,20 @@
         "speedStep",
         "autoConfirm",
         "shortsAsWatch",
+        "rewriteShortsLinks",
       ]) {
         if (hasOwn(rawPreferences, key)) {
           preferences[key] = imported.preferences[key];
         }
+      }
+
+      // Preserve redirect mode when importing older backups.
+      if (
+        hasOwn(rawPreferences, "shortsAsWatch") &&
+        imported.preferences.shortsAsWatch &&
+        !hasOwn(rawPreferences, "rewriteShortsLinks")
+      ) {
+        preferences.rewriteShortsLinks = false;
       }
 
       return this.commit({
@@ -1526,6 +1549,231 @@
     const target = new URL("/watch", location.origin);
     target.searchParams.set("v", record.videoId);
     return target;
+  }
+
+  function createShortsWatchLink(rawHref, baseUrl = document.baseURI) {
+    if (typeof rawHref !== "string" || !rawHref.includes("shorts/")) {
+      return null;
+    }
+
+    try {
+      const source = new URL(rawHref, baseUrl);
+      const hosts = ["youtube.com", "www.youtube.com", "m.youtube.com"];
+      const match = source.pathname.match(/^\/shorts\/([A-Za-z0-9_-]{11})\/?$/);
+
+      if (
+        !match ||
+        !["http:", "https:"].includes(source.protocol) ||
+        !hosts.includes(source.hostname) ||
+        source.port || source.username || source.password
+      ) {
+        return null;
+      }
+
+      const target = new URL("/watch", source.origin);
+      target.searchParams.set("v", match[1]);
+
+      for (const [key, value] of source.searchParams) {
+        if (key !== "v") {
+          target.searchParams.append(key, value);
+        }
+      }
+
+      target.hash = source.hash;
+      return target.href;
+    } catch {
+      return null;
+    }
+  }
+
+  class ShortsLinkController {
+    constructor() {
+      this.enabled = false;
+      this.observer = null;
+      this.abortController = null;
+      this.rewritten = new WeakMap();
+      this.liveAnchors = new Set();
+    }
+
+    setEnabled(enabled) {
+      const next = Boolean(enabled);
+
+      if (next === this.enabled) {
+        return;
+      }
+
+      if (!next) {
+        this.stop();
+        return;
+      }
+
+      this.enabled = true;
+      this.abortController = new AbortController();
+      const { signal } = this.abortController;
+
+      for (const eventName of [
+        "pointerover", "pointerdown", "mousedown", "focusin", "contextmenu",
+        "click", "auxclick", "keydown",
+      ]) {
+        window.addEventListener(eventName, (event) => this.handleInteraction(event), {
+          capture: true,
+          signal,
+        });
+      }
+
+      // documentElement may not exist at document-start.
+      this.observer = new MutationObserver((records) => this.handleMutations(records));
+      this.observer.observe(document, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["href", "download"],
+      });
+      this.scan(document);
+    }
+
+    visitAnchors(root, callback) {
+      if (root instanceof HTMLAnchorElement) {
+        callback(root);
+      }
+
+      if (typeof root?.querySelectorAll === "function") {
+        for (const anchor of root.querySelectorAll("a")) {
+          callback(anchor);
+        }
+      }
+    }
+
+    scan(root) {
+      this.visitAnchors(root, (anchor) => this.rewriteAnchor(anchor));
+    }
+
+    rewriteAnchor(anchor) {
+      if (!this.enabled || !(anchor instanceof HTMLAnchorElement)) {
+        return;
+      }
+
+      const current = anchor.getAttribute("href");
+      const previous = this.rewritten.get(anchor);
+
+      if (anchor.hasAttribute("download")) {
+        this.restoreAnchor(anchor);
+        return;
+      }
+
+      if (previous?.written === current) {
+        return;
+      }
+
+      // Discard stale restore data when an anchor changes href.
+      this.rewritten.delete(anchor);
+      this.liveAnchors.delete(anchor);
+
+      const target = createShortsWatchLink(current, anchor.baseURI);
+
+      if (!target) {
+        return;
+      }
+
+      this.rewritten.set(anchor, { original: current, written: target });
+      this.liveAnchors.add(anchor);
+      anchor.setAttribute("href", target);
+    }
+
+    restoreAnchor(anchor) {
+      const saved = this.rewritten.get(anchor);
+
+      if (saved && anchor.getAttribute("href") === saved.written) {
+        anchor.setAttribute("href", saved.original);
+      }
+
+      this.rewritten.delete(anchor);
+      this.liveAnchors.delete(anchor);
+    }
+
+    handleMutations(records) {
+      if (!this.enabled) {
+        return;
+      }
+
+      for (const record of records) {
+        if (record.type === "attributes") {
+          if (record.target.isConnected) {
+            this.rewriteAnchor(record.target);
+          }
+          continue;
+        }
+
+        for (const node of record.addedNodes) {
+          if (node.isConnected) {
+            this.scan(node);
+          }
+        }
+
+        for (const node of record.removedNodes) {
+          this.visitAnchors(node, (anchor) => {
+            if (!anchor.isConnected) {
+              this.restoreAnchor(anchor);
+            }
+          });
+        }
+      }
+    }
+
+    handleInteraction(event) {
+      if (!this.enabled || event.defaultPrevented) {
+        return;
+      }
+
+      if (event.type === "keydown" && event.key !== "Enter") {
+        return;
+      }
+
+      const path = event.composedPath?.() ?? [];
+      const anchor = path.find((node) => node instanceof HTMLAnchorElement)
+        ?? event.target?.closest?.("a[href]");
+
+      if (!anchor || anchor.isContentEditable || anchor.hasAttribute("download")) {
+        return;
+      }
+
+      // Catch clicks before the mutation observer runs.
+      this.rewriteAnchor(anchor);
+      const saved = this.rewritten.get(anchor);
+
+      if (!saved || anchor.getAttribute("href") !== saved.written) {
+        return;
+      }
+
+      const activatesLink =
+        (event.type === "click" && event.button === 0) ||
+        (event.type === "auxclick" && event.button === 1) ||
+        (event.type === "keydown" && event.key === "Enter");
+
+      if (activatesLink) {
+        // Stop later handlers without cancelling the default action.
+        event.stopImmediatePropagation();
+      }
+    }
+
+    stop() {
+      this.enabled = false;
+      this.observer?.disconnect();
+      this.observer = null;
+      this.abortController?.abort();
+      this.abortController = null;
+
+      for (const anchor of this.liveAnchors) {
+        this.restoreAnchor(anchor);
+      }
+
+      this.liveAnchors.clear();
+      this.rewritten = new WeakMap();
+    }
+
+    destroy() {
+      this.stop();
+    }
   }
 
   function resolvePanelHost() {
@@ -3179,6 +3427,13 @@
           "aria-pressed": "false",
         },
       });
+      const rewriteShortsLinksToggle = this.createButton({
+        action: "toggle-shorts-links",
+        className: "ytec-button ytec-toggle",
+        attributes: {
+          "aria-pressed": "false",
+        },
+      });
       const autoConfirmToggle = this.createButton({
         action: "toggle-auto-confirm",
         className: "ytec-button ytec-toggle",
@@ -3211,6 +3466,19 @@
             }),
           ),
           shortsAsWatchToggle,
+        ),
+        createElement(
+          "div",
+          { className: "ytec-row" },
+          createElement(
+            "div",
+            { className: "ytec-setting-stack" },
+            this.createLabel("rewriteShortsLinks"),
+            this.createI18nElement("p", "rewriteShortsLinksHint", {
+              className: "ytec-hint",
+            }),
+          ),
+          rewriteShortsLinksToggle,
         ),
         createElement(
           "div",
@@ -3418,6 +3686,7 @@
         languageSelect,
         speedStepSelect,
         shortsAsWatchToggle,
+        rewriteShortsLinksToggle,
         autoConfirmToggle,
         shortcutGroups,
         clearShortcutsButton,
@@ -3560,6 +3829,9 @@
               break;
             case "toggle-shorts-watch":
               this.handlers.toggleShortsAsWatch?.();
+              break;
+            case "toggle-shorts-links":
+              this.handlers.toggleRewriteShortsLinks?.();
               break;
             case "toggle-auto-confirm":
               this.handlers.toggleAutoConfirm?.();
@@ -3933,6 +4205,10 @@
         Boolean(preferences.shortsAsWatch),
       );
       this.renderToggle(
+        this.refs.rewriteShortsLinksToggle,
+        Boolean(preferences.rewriteShortsLinks),
+      );
+      this.renderToggle(
         this.refs.autoConfirmToggle,
         Boolean(preferences.autoConfirm),
       );
@@ -4298,6 +4574,7 @@
       this.preferences = this.store.getPreferences();
       this.translator = new Translator(this.preferences.language);
       this.backupService = new BackupService(this.store);
+      this.shortsLinkController = new ShortsLinkController();
 
       this.appAbortController = new AbortController();
       this.panelAbortController = null;
@@ -4521,10 +4798,15 @@
 
     redirectShortsIfNeeded() {
       this.preferences = this.store.getPreferences();
+      this.shortsLinkController.setEnabled(this.preferences.rewriteShortsLinks);
 
       const route = parseLocationRoute();
 
-      if (!this.preferences.shortsAsWatch || route?.type !== "shorts") {
+      if (
+        this.preferences.rewriteShortsLinks ||
+        !this.preferences.shortsAsWatch ||
+        route?.type !== "shorts"
+      ) {
         return false;
       }
 
@@ -4800,6 +5082,10 @@
           this.toggleShortsAsWatch();
         },
 
+        toggleRewriteShortsLinks: () => {
+          this.toggleRewriteShortsLinks();
+        },
+
         toggleAutoConfirm: () => {
           this.toggleAutoConfirm();
         },
@@ -4936,9 +5222,23 @@
     }
 
     toggleShortsAsWatch() {
-      const persisted = this.store.setPreferences({
-        shortsAsWatch: !this.preferences.shortsAsWatch,
+      const enabled = !this.store.getPreferences().shortsAsWatch;
+      this.setShortsPreferences({
+        shortsAsWatch: enabled,
+        ...(enabled ? { rewriteShortsLinks: false } : {}),
       });
+    }
+
+    toggleRewriteShortsLinks() {
+      const enabled = !this.store.getPreferences().rewriteShortsLinks;
+      this.setShortsPreferences({
+        rewriteShortsLinks: enabled,
+        ...(enabled ? { shortsAsWatch: false } : {}),
+      });
+    }
+
+    setShortsPreferences(patch) {
+      const persisted = this.store.setPreferences(patch);
 
       if (!persisted) {
         this.view?.setBackupMessage("storageError", {}, true);
@@ -5169,7 +5469,7 @@
           videoId,
           ...record,
         },
-        this.preferences.shortsAsWatch,
+        this.preferences.shortsAsWatch || this.preferences.rewriteShortsLinks,
       );
 
       const opened = window.open(target.href, "_blank", "noopener,noreferrer");
@@ -5323,6 +5623,7 @@
       this.speedController.destroy();
       this.loopController.destroy();
       this.autoConfirmController.destroy();
+      this.shortsLinkController.destroy();
       this.view?.remove();
 
       this.view = null;

@@ -127,6 +127,10 @@ class PanelView {
       Boolean(preferences.shortsAsWatch),
     );
     this.renderToggle(
+      this.refs.rewriteShortsLinksToggle,
+      Boolean(preferences.rewriteShortsLinks),
+    );
+    this.renderToggle(
       this.refs.autoConfirmToggle,
       Boolean(preferences.autoConfirm),
     );

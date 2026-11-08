@@ -153,10 +153,20 @@ class StateStore {
       "speedStep",
       "autoConfirm",
       "shortsAsWatch",
+      "rewriteShortsLinks",
     ]) {
       if (hasOwn(rawPreferences, key)) {
         preferences[key] = imported.preferences[key];
       }
+    }
+
+    // Preserve redirect mode when importing older backups.
+    if (
+      hasOwn(rawPreferences, "shortsAsWatch") &&
+      imported.preferences.shortsAsWatch &&
+      !hasOwn(rawPreferences, "rewriteShortsLinks")
+    ) {
+      preferences.rewriteShortsLinks = false;
     }
 
     return this.commit({

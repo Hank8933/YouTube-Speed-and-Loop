@@ -116,6 +116,9 @@ class PanelView {
           case "toggle-shorts-watch":
             this.handlers.toggleShortsAsWatch?.();
             break;
+          case "toggle-shorts-links":
+            this.handlers.toggleRewriteShortsLinks?.();
+            break;
           case "toggle-auto-confirm":
             this.handlers.toggleAutoConfirm?.();
             break;
