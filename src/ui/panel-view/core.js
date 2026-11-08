@@ -219,6 +219,13 @@ class PanelView {
         "aria-pressed": "false",
       },
     });
+    const rewriteShortsLinksToggle = this.createButton({
+      action: "toggle-shorts-links",
+      className: "ytec-button ytec-toggle",
+      attributes: {
+        "aria-pressed": "false",
+      },
+    });
     const autoConfirmToggle = this.createButton({
       action: "toggle-auto-confirm",
       className: "ytec-button ytec-toggle",
@@ -251,6 +258,19 @@ class PanelView {
           }),
         ),
         shortsAsWatchToggle,
+      ),
+      createElement(
+        "div",
+        { className: "ytec-row" },
+        createElement(
+          "div",
+          { className: "ytec-setting-stack" },
+          this.createLabel("rewriteShortsLinks"),
+          this.createI18nElement("p", "rewriteShortsLinksHint", {
+            className: "ytec-hint",
+          }),
+        ),
+        rewriteShortsLinksToggle,
       ),
       createElement(
         "div",
@@ -458,6 +478,7 @@ class PanelView {
       languageSelect,
       speedStepSelect,
       shortsAsWatchToggle,
+      rewriteShortsLinksToggle,
       autoConfirmToggle,
       shortcutGroups,
       clearShortcutsButton,

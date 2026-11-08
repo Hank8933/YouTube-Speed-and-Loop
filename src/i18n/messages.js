@@ -22,6 +22,7 @@ const TEXT = Object.freeze({
     invalidTime: "格式錯誤，可輸入 SS、MM:SS 或 HH:MM:SS.fff。",
     invalidRange: "啟用 Loop 時，A 與 B 都必須存在，且 B 必須大於 A。",
     loadingA: "A 點不在目前緩衝區，正在載入。",
+    nativeLoopActive: "影片原生循環已開啟（整部影片）；A-B 區間未啟用。",
     pointsSaved: "已自動儲存此影片的 A/B 與 Loop 狀態。",
     pointsNotSaved: "此影片尚未儲存 A/B 紀錄。",
     pointsSaveFailed: "A/B 已套用，但無法寫入瀏覽器儲存空間。",
@@ -30,8 +31,10 @@ const TEXT = Object.freeze({
     language: "介面語言",
     autoLanguage: "自動（瀏覽器）",
     speedStep: "倍速快捷鍵步進",
-    shortsAsWatch: "Shorts 使用一般影片介面",
-    shortsAsWatchHint: "開啟後，/shorts/ 會重新導向標準 /watch 播放頁。",
+    shortsAsWatch: "Shorts 使用一般影片介面（重導向）",
+    shortsAsWatchHint: "開啟後，/shorts/ 會重新導向 /watch，並關閉直接改寫連結模式。",
+    rewriteShortsLinks: "直接改寫 Shorts 連結（不重導向）",
+    rewriteShortsLinksHint: "先將頁面內的 Shorts 連結改為 /watch；保留時間與播放清單參數。開啟會關閉重導向；直接貼入 /shorts/ 網址不會跳轉。",
     autoConfirm: "自動點擊「繼續觀看」",
 
     shortcuts: "快捷鍵",
@@ -120,6 +123,7 @@ const TEXT = Object.freeze({
     invalidTime: "格式错误，可输入 SS、MM:SS 或 HH:MM:SS.fff。",
     invalidRange: "启用 Loop 时，A 与 B 都必须存在，且 B 必须大于 A。",
     loadingA: "A 点不在当前缓冲区，正在加载。",
+    nativeLoopActive: "视频原生循环已开启（整个视频）；A-B 区间未启用。",
     pointsSaved: "已自动保存此视频的 A/B 与 Loop 状态。",
     pointsNotSaved: "此视频尚未保存 A/B 记录。",
     pointsSaveFailed: "A/B 已应用，但无法写入浏览器存储空间。",
@@ -128,8 +132,10 @@ const TEXT = Object.freeze({
     language: "界面语言",
     autoLanguage: "自动（浏览器）",
     speedStep: "倍速快捷键步进",
-    shortsAsWatch: "Shorts 使用普通视频界面",
-    shortsAsWatchHint: "开启后，/shorts/ 会重定向到标准 /watch 播放页。",
+    shortsAsWatch: "Shorts 使用普通视频界面（重定向）",
+    shortsAsWatchHint: "开启后，/shorts/ 会重定向到 /watch，并关闭直接改写链接模式。",
+    rewriteShortsLinks: "直接改写 Shorts 链接（不重定向）",
+    rewriteShortsLinksHint: "预先将页面内的 Shorts 链接改为 /watch，保留时间和播放列表参数。开启会关闭重定向；直接粘贴 /shorts/ 地址不会跳转。",
     autoConfirm: "自动点击“继续观看”",
 
     shortcuts: "快捷键",
@@ -219,6 +225,7 @@ const TEXT = Object.freeze({
     invalidRange:
       "When Loop is enabled, both A and B are required and B must be later than A.",
     loadingA: "Point A is outside the current buffer and is loading.",
+    nativeLoopActive: "Native full-video loop is on; the A-B range is inactive.",
     pointsSaved:
       "The A/B points and Loop state for this video are saved automatically.",
     pointsNotSaved: "No A/B record is saved for this video.",
@@ -229,9 +236,12 @@ const TEXT = Object.freeze({
     language: "Interface language",
     autoLanguage: "Automatic (browser)",
     speedStep: "Speed shortcut step",
-    shortsAsWatch: "Use the standard video page for Shorts",
+    shortsAsWatch: "Use the standard video page for Shorts (redirect)",
     shortsAsWatchHint:
-      "When enabled, /shorts/ URLs are redirected to the standard /watch player.",
+      "Redirect /shorts/ pages to /watch. Enabling this turns off direct-link mode.",
+    rewriteShortsLinks: "Rewrite Shorts links directly (no redirect)",
+    rewriteShortsLinksHint:
+      "Rewrite page links to /watch before opening, keeping timestamps and playlist parameters. Disables redirects; pasting a /shorts/ URL does not redirect.",
     autoConfirm: "Automatically click “Continue watching”",
 
     shortcuts: "Keyboard shortcuts",

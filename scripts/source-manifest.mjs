@@ -9,6 +9,7 @@ export const sourceEntries = Object.freeze([
   "src/core/time-codec.js",
   "src/ui/style-manager.js",
   "src/youtube/routes.js",
+  "src/controllers/shorts-link-controller.js",
   "src/youtube/panel-host.js",
   "src/youtube/video-resolver.js",
   "src/core/events.js",

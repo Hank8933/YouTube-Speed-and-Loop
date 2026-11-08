@@ -4,6 +4,7 @@ class Application {
     this.preferences = this.store.getPreferences();
     this.translator = new Translator(this.preferences.language);
     this.backupService = new BackupService(this.store);
+    this.shortsLinkController = new ShortsLinkController();
 
     this.appAbortController = new AbortController();
     this.panelAbortController = null;
@@ -227,10 +228,15 @@ class Application {
 
   redirectShortsIfNeeded() {
     this.preferences = this.store.getPreferences();
+    this.shortsLinkController.setEnabled(this.preferences.rewriteShortsLinks);
 
     const route = parseLocationRoute();
 
-    if (!this.preferences.shortsAsWatch || route?.type !== "shorts") {
+    if (
+      this.preferences.rewriteShortsLinks ||
+      !this.preferences.shortsAsWatch ||
+      route?.type !== "shorts"
+    ) {
       return false;
     }
 
@@ -506,6 +512,10 @@ class Application {
         this.toggleShortsAsWatch();
       },
 
+      toggleRewriteShortsLinks: () => {
+        this.toggleRewriteShortsLinks();
+      },
+
       toggleAutoConfirm: () => {
         this.toggleAutoConfirm();
       },
@@ -642,9 +652,23 @@ class Application {
   }
 
   toggleShortsAsWatch() {
-    const persisted = this.store.setPreferences({
-      shortsAsWatch: !this.preferences.shortsAsWatch,
+    const enabled = !this.store.getPreferences().shortsAsWatch;
+    this.setShortsPreferences({
+      shortsAsWatch: enabled,
+      ...(enabled ? { rewriteShortsLinks: false } : {}),
     });
+  }
+
+  toggleRewriteShortsLinks() {
+    const enabled = !this.store.getPreferences().rewriteShortsLinks;
+    this.setShortsPreferences({
+      rewriteShortsLinks: enabled,
+      ...(enabled ? { shortsAsWatch: false } : {}),
+    });
+  }
+
+  setShortsPreferences(patch) {
+    const persisted = this.store.setPreferences(patch);
 
     if (!persisted) {
       this.view?.setBackupMessage("storageError", {}, true);
@@ -875,7 +899,7 @@ class Application {
         videoId,
         ...record,
       },
-      this.preferences.shortsAsWatch,
+      this.preferences.shortsAsWatch || this.preferences.rewriteShortsLinks,
     );
 
     const opened = window.open(target.href, "_blank", "noopener,noreferrer");
@@ -1029,6 +1053,7 @@ class Application {
     this.speedController.destroy();
     this.loopController.destroy();
     this.autoConfirmController.destroy();
+    this.shortsLinkController.destroy();
     this.view?.remove();
 
     this.view = null;
