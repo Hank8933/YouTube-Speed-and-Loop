@@ -200,6 +200,7 @@
       invalidTime: "格式錯誤，可輸入 SS、MM:SS 或 HH:MM:SS.fff。",
       invalidRange: "啟用 Loop 時，A 與 B 都必須存在，且 B 必須大於 A。",
       loadingA: "A 點不在目前緩衝區，正在載入。",
+      nativeLoopActive: "影片原生循環已開啟（整部影片）；A-B 區間未啟用。",
       pointsSaved: "已自動儲存此影片的 A/B 與 Loop 狀態。",
       pointsNotSaved: "此影片尚未儲存 A/B 紀錄。",
       pointsSaveFailed: "A/B 已套用，但無法寫入瀏覽器儲存空間。",
@@ -300,6 +301,7 @@
       invalidTime: "格式错误，可输入 SS、MM:SS 或 HH:MM:SS.fff。",
       invalidRange: "启用 Loop 时，A 与 B 都必须存在，且 B 必须大于 A。",
       loadingA: "A 点不在当前缓冲区，正在加载。",
+      nativeLoopActive: "视频原生循环已开启（整个视频）；A-B 区间未启用。",
       pointsSaved: "已自动保存此视频的 A/B 与 Loop 状态。",
       pointsNotSaved: "此视频尚未保存 A/B 记录。",
       pointsSaveFailed: "A/B 已应用，但无法写入浏览器存储空间。",
@@ -401,6 +403,7 @@
       invalidRange:
         "When Loop is enabled, both A and B are required and B must be later than A.",
       loadingA: "Point A is outside the current buffer and is loading.",
+      nativeLoopActive: "Native full-video loop is on; the A-B range is inactive.",
       pointsSaved:
         "The A/B points and Loop state for this video are saved automatically.",
       pointsNotSaved: "No A/B record is saved for this video.",
@@ -2383,6 +2386,7 @@
       this.onRecordChange = onRecordChange;
       this.video = null;
       this.abortController = null;
+      this.nativeLoopObserver = null;
       this.enabled = false;
       this.start = null;
       this.end = null;
@@ -2393,6 +2397,8 @@
     }
 
     bind(video) {
+      this.nativeLoopObserver?.disconnect();
+      this.nativeLoopObserver = null;
       this.abortController?.abort();
       this.abortController = null;
       this.stopScheduler();
@@ -2405,15 +2411,23 @@
         return;
       }
 
-      try {
-        video.loop = false;
-      } catch {
-        // Native loop is optional and independent from custom A-B Loop.
+      if (this.enabled && this.hasValidRange()) {
+        this.disableNativeLoop();
       }
 
       this.abortController = new AbortController();
       const { signal } = this.abortController;
       const isCurrent = () => this.video === video;
+
+      this.nativeLoopObserver = new MutationObserver(() => {
+        if (isCurrent()) {
+          this.synchronizeNativeLoop();
+        }
+      });
+      this.nativeLoopObserver.observe(video, {
+        attributes: true,
+        attributeFilter: ["loop"],
+      });
 
       const synchronize = () => {
         if (!isCurrent()) {
@@ -2558,6 +2572,11 @@
       this.start = normalized?.start ?? null;
       this.end = normalized?.end ?? null;
       this.enabled = Boolean(normalized?.enabled) && this.hasValidRange();
+
+      if (this.enabled) {
+        this.disableNativeLoop();
+      }
+
       this.notify();
 
       if (this.video && this.enabled) {
@@ -2586,6 +2605,7 @@
     }
 
     clear() {
+      this.disableNativeLoop();
       this.stopScheduler();
       this.cancelSeek();
       this.enabled = false;
@@ -2597,12 +2617,20 @@
     }
 
     toggle() {
-      if (!this.video || !this.hasValidRange()) {
+      if (!this.canToggle()) {
         return;
       }
 
+      const enabled = !this.enabled && !this.isNativeLoopEnabled();
+
+      if (enabled && this.start === null && this.end === null) {
+        this.start = 0;
+        this.end = this.video.duration;
+      }
+
+      this.disableNativeLoop();
       this.statusKey = null;
-      this.enabled = !this.enabled;
+      this.enabled = enabled;
 
       if (this.enabled) {
         this.enforce();
@@ -2633,10 +2661,12 @@
     getState() {
       return {
         available: Boolean(this.video),
-        enabled: this.enabled,
+        enabled: this.enabled || this.isNativeLoopEnabled(),
+        nativeLoop: this.isNativeLoopEnabled(),
         start: this.start,
         end: this.end,
         validRange: this.hasValidRange(),
+        canToggle: this.canToggle(),
         statusKey: this.statusKey,
       };
     }
@@ -2664,6 +2694,45 @@
       return clamp(time, 0, duration);
     }
 
+    canToggle() {
+      return Boolean(this.video) && (
+        this.isNativeLoopEnabled() ||
+        this.enabled ||
+        this.hasValidRange() ||
+        (this.start === null &&
+          this.end === null &&
+          Number.isFinite(this.video.duration) &&
+          this.video.duration > 0)
+      );
+    }
+
+    isNativeLoopEnabled() {
+      return this.video?.loop === true;
+    }
+
+    disableNativeLoop() {
+      if (this.isNativeLoopEnabled()) {
+        this.video.loop = false;
+      }
+    }
+
+    synchronizeNativeLoop() {
+      const wasEnabled = this.enabled;
+
+      if (this.isNativeLoopEnabled()) {
+        this.enabled = false;
+        this.stopScheduler();
+        this.cancelSeek();
+        this.statusKey = null;
+      }
+
+      this.notify();
+
+      if (wasEnabled !== this.enabled) {
+        this.emitRecordChange();
+      }
+    }
+
     hasValidRange() {
       return (
         Number.isFinite(this.start) &&
@@ -2687,6 +2756,7 @@
       if (
         !video ||
         !this.enabled ||
+        this.isNativeLoopEnabled() ||
         !this.hasValidRange() ||
         this.isAdPlaying() ||
         this.seekState ||
@@ -2850,6 +2920,7 @@
         !video ||
         video.paused ||
         !this.enabled ||
+        this.isNativeLoopEnabled() ||
         !this.hasValidRange() ||
         this.seekState ||
         video.seeking ||
@@ -2902,6 +2973,8 @@
     }
 
     destroy() {
+      this.nativeLoopObserver?.disconnect();
+      this.nativeLoopObserver = null;
       this.abortController?.abort();
       this.abortController = null;
       this.stopScheduler();
@@ -4147,7 +4220,7 @@
         Number.isFinite(start) && Number.isFinite(end) && end <= start;
 
       this.renderToggle(this.refs.loopToggle, Boolean(state?.enabled));
-      this.refs.loopToggle.disabled = !available || !state?.validRange;
+      this.refs.loopToggle.disabled = !available || !state?.canToggle;
       this.refs.setStartButton.disabled = !available;
       this.refs.setEndButton.disabled = !available;
       this.refs.clearLoopButton.disabled =
@@ -4158,16 +4231,18 @@
       this.renderTimeInput(this.refs.loopStartInput, start, invalidRange);
       this.renderTimeInput(this.refs.loopEndInput, end, invalidRange);
 
-      const statusKey = invalidRange ? "invalidRange" : state?.statusKey;
+      const statusKey = state?.nativeLoop
+        ? "nativeLoopActive"
+        : invalidRange ? "invalidRange" : state?.statusKey;
       this.refs.loopStatus.textContent = statusKey ? this.t(statusKey) : "";
-      this.refs.loopStatus.dataset.error = String(invalidRange);
+      this.refs.loopStatus.dataset.error = String(invalidRange && !state?.nativeLoop);
 
       const persistenceKey = persistence?.failed
         ? "pointsSaveFailed"
         : persistence?.saved
           ? "pointsSaved"
           : "pointsNotSaved";
-      this.refs.loopPersistence.textContent = available
+      this.refs.loopPersistence.textContent = available && !state?.nativeLoop
         ? this.t(persistenceKey)
         : "";
     }

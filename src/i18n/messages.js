@@ -22,6 +22,7 @@ const TEXT = Object.freeze({
     invalidTime: "格式錯誤，可輸入 SS、MM:SS 或 HH:MM:SS.fff。",
     invalidRange: "啟用 Loop 時，A 與 B 都必須存在，且 B 必須大於 A。",
     loadingA: "A 點不在目前緩衝區，正在載入。",
+    nativeLoopActive: "影片原生循環已開啟（整部影片）；A-B 區間未啟用。",
     pointsSaved: "已自動儲存此影片的 A/B 與 Loop 狀態。",
     pointsNotSaved: "此影片尚未儲存 A/B 紀錄。",
     pointsSaveFailed: "A/B 已套用，但無法寫入瀏覽器儲存空間。",
@@ -122,6 +123,7 @@ const TEXT = Object.freeze({
     invalidTime: "格式错误，可输入 SS、MM:SS 或 HH:MM:SS.fff。",
     invalidRange: "启用 Loop 时，A 与 B 都必须存在，且 B 必须大于 A。",
     loadingA: "A 点不在当前缓冲区，正在加载。",
+    nativeLoopActive: "视频原生循环已开启（整个视频）；A-B 区间未启用。",
     pointsSaved: "已自动保存此视频的 A/B 与 Loop 状态。",
     pointsNotSaved: "此视频尚未保存 A/B 记录。",
     pointsSaveFailed: "A/B 已应用，但无法写入浏览器存储空间。",
@@ -223,6 +225,7 @@ const TEXT = Object.freeze({
     invalidRange:
       "When Loop is enabled, both A and B are required and B must be later than A.",
     loadingA: "Point A is outside the current buffer and is loading.",
+    nativeLoopActive: "Native full-video loop is on; the A-B range is inactive.",
     pointsSaved:
       "The A/B points and Loop state for this video are saved automatically.",
     pointsNotSaved: "No A/B record is saved for this video.",

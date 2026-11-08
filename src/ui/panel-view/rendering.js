@@ -69,7 +69,7 @@ class PanelView {
       Number.isFinite(start) && Number.isFinite(end) && end <= start;
 
     this.renderToggle(this.refs.loopToggle, Boolean(state?.enabled));
-    this.refs.loopToggle.disabled = !available || !state?.validRange;
+    this.refs.loopToggle.disabled = !available || !state?.canToggle;
     this.refs.setStartButton.disabled = !available;
     this.refs.setEndButton.disabled = !available;
     this.refs.clearLoopButton.disabled =
@@ -80,16 +80,18 @@ class PanelView {
     this.renderTimeInput(this.refs.loopStartInput, start, invalidRange);
     this.renderTimeInput(this.refs.loopEndInput, end, invalidRange);
 
-    const statusKey = invalidRange ? "invalidRange" : state?.statusKey;
+    const statusKey = state?.nativeLoop
+      ? "nativeLoopActive"
+      : invalidRange ? "invalidRange" : state?.statusKey;
     this.refs.loopStatus.textContent = statusKey ? this.t(statusKey) : "";
-    this.refs.loopStatus.dataset.error = String(invalidRange);
+    this.refs.loopStatus.dataset.error = String(invalidRange && !state?.nativeLoop);
 
     const persistenceKey = persistence?.failed
       ? "pointsSaveFailed"
       : persistence?.saved
         ? "pointsSaved"
         : "pointsNotSaved";
-    this.refs.loopPersistence.textContent = available
+    this.refs.loopPersistence.textContent = available && !state?.nativeLoop
       ? this.t(persistenceKey)
       : "";
   }

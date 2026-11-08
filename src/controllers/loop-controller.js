@@ -4,6 +4,7 @@ class LoopController {
     this.onRecordChange = onRecordChange;
     this.video = null;
     this.abortController = null;
+    this.nativeLoopObserver = null;
     this.enabled = false;
     this.start = null;
     this.end = null;
@@ -14,6 +15,8 @@ class LoopController {
   }
 
   bind(video) {
+    this.nativeLoopObserver?.disconnect();
+    this.nativeLoopObserver = null;
     this.abortController?.abort();
     this.abortController = null;
     this.stopScheduler();
@@ -26,15 +29,23 @@ class LoopController {
       return;
     }
 
-    try {
-      video.loop = false;
-    } catch {
-      // Native loop is optional and independent from custom A-B Loop.
+    if (this.enabled && this.hasValidRange()) {
+      this.disableNativeLoop();
     }
 
     this.abortController = new AbortController();
     const { signal } = this.abortController;
     const isCurrent = () => this.video === video;
+
+    this.nativeLoopObserver = new MutationObserver(() => {
+      if (isCurrent()) {
+        this.synchronizeNativeLoop();
+      }
+    });
+    this.nativeLoopObserver.observe(video, {
+      attributes: true,
+      attributeFilter: ["loop"],
+    });
 
     const synchronize = () => {
       if (!isCurrent()) {
@@ -179,6 +190,11 @@ class LoopController {
     this.start = normalized?.start ?? null;
     this.end = normalized?.end ?? null;
     this.enabled = Boolean(normalized?.enabled) && this.hasValidRange();
+
+    if (this.enabled) {
+      this.disableNativeLoop();
+    }
+
     this.notify();
 
     if (this.video && this.enabled) {
@@ -207,6 +223,7 @@ class LoopController {
   }
 
   clear() {
+    this.disableNativeLoop();
     this.stopScheduler();
     this.cancelSeek();
     this.enabled = false;
@@ -218,12 +235,20 @@ class LoopController {
   }
 
   toggle() {
-    if (!this.video || !this.hasValidRange()) {
+    if (!this.canToggle()) {
       return;
     }
 
+    const enabled = !this.enabled && !this.isNativeLoopEnabled();
+
+    if (enabled && this.start === null && this.end === null) {
+      this.start = 0;
+      this.end = this.video.duration;
+    }
+
+    this.disableNativeLoop();
     this.statusKey = null;
-    this.enabled = !this.enabled;
+    this.enabled = enabled;
 
     if (this.enabled) {
       this.enforce();
@@ -254,10 +279,12 @@ class LoopController {
   getState() {
     return {
       available: Boolean(this.video),
-      enabled: this.enabled,
+      enabled: this.enabled || this.isNativeLoopEnabled(),
+      nativeLoop: this.isNativeLoopEnabled(),
       start: this.start,
       end: this.end,
       validRange: this.hasValidRange(),
+      canToggle: this.canToggle(),
       statusKey: this.statusKey,
     };
   }
@@ -285,6 +312,45 @@ class LoopController {
     return clamp(time, 0, duration);
   }
 
+  canToggle() {
+    return Boolean(this.video) && (
+      this.isNativeLoopEnabled() ||
+      this.enabled ||
+      this.hasValidRange() ||
+      (this.start === null &&
+        this.end === null &&
+        Number.isFinite(this.video.duration) &&
+        this.video.duration > 0)
+    );
+  }
+
+  isNativeLoopEnabled() {
+    return this.video?.loop === true;
+  }
+
+  disableNativeLoop() {
+    if (this.isNativeLoopEnabled()) {
+      this.video.loop = false;
+    }
+  }
+
+  synchronizeNativeLoop() {
+    const wasEnabled = this.enabled;
+
+    if (this.isNativeLoopEnabled()) {
+      this.enabled = false;
+      this.stopScheduler();
+      this.cancelSeek();
+      this.statusKey = null;
+    }
+
+    this.notify();
+
+    if (wasEnabled !== this.enabled) {
+      this.emitRecordChange();
+    }
+  }
+
   hasValidRange() {
     return (
       Number.isFinite(this.start) &&
@@ -308,6 +374,7 @@ class LoopController {
     if (
       !video ||
       !this.enabled ||
+      this.isNativeLoopEnabled() ||
       !this.hasValidRange() ||
       this.isAdPlaying() ||
       this.seekState ||
@@ -471,6 +538,7 @@ class LoopController {
       !video ||
       video.paused ||
       !this.enabled ||
+      this.isNativeLoopEnabled() ||
       !this.hasValidRange() ||
       this.seekState ||
       video.seeking ||
@@ -523,6 +591,8 @@ class LoopController {
   }
 
   destroy() {
+    this.nativeLoopObserver?.disconnect();
+    this.nativeLoopObserver = null;
     this.abortController?.abort();
     this.abortController = null;
     this.stopScheduler();
